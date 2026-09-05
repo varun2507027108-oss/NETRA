@@ -16,6 +16,9 @@ from ..config import (BARCODE_MIN_ASPECT, BARCODE_MIN_COL_CV,
                       SHAPE_SAGITTA_FRAC)
 from ..context import BBox
 
+# Synthetic-tuned: 25x25 bridges 14px synthetic dark seam gaps in tests.
+# A larger close kernel risks bridging the package silhouette to adjacent
+# clutter on real shelf photos. Expect to revisit / calibrate against real fixtures.
 _CLOSE_KERNEL = np.ones((25, 25), np.uint8)
 
 
@@ -127,6 +130,15 @@ def suggest_shape(gray, pkg):
     default, so a miss is an omission — never a wrong formula. The
     suggestion fills ctx.shape_detected for the report UI; the
     inspector's shape_hint stays authoritative for Rule 7(4).
+
+    Order matters: bottle (narrow-top) must be checked BEFORE cylindrical
+    (top-edge curvature). On a bottle, the top-edge profile is stepped:
+    [shoulder, ..., neck-top, ..., shoulder]. The chord-minus-profile
+    sagitta measures the shoulder height (e.g. 120px -> ~0.40 curvature),
+    which would falsely trigger "cylindrical" before the bottle check is
+    ever reached. Testing narrow-top first prevents this confound and
+    cannot misfire on cylinders because a cylinder's top band spans the full
+    silhouette width (ratio ≈ 1.0, never <= 0.5).
     """
     bbox, contour = pkg["bbox"], pkg["contour"]
     ratio = top_width_ratio(contour, bbox)
