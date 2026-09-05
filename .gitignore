@@ -43,3 +43,4 @@ netra_data/
 netra_backend.db
 backend/*.db
 core/fixtures/synth/
+core/demo_output/
