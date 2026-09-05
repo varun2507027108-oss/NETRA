@@ -12,6 +12,7 @@ from netra_core.bridge.schema import (              # noqa: E402
     RESULT_KEYS, SCHEMA_VERSION, STAGE_NAMES,
     ping_payload, scan_request_from_dict,
 )
+import netra_core.pipeline as pipeline_module       # noqa: E402
 from netra_core.pipeline import run_demo_scan, run_scan   # noqa: E402
 
 
@@ -144,15 +145,45 @@ def test_run_scan_bad_base64():
     assert r["error"]["code"] == "DECODE_ERROR"
 
 
-def test_run_scan_missing_stage_envelope():
+def test_run_scan_without_fiducial_is_retry_and_skips_unbuilt():
     rng = np.random.default_rng(7)
     b64 = _image_b64(rng.integers(0, 200, (480, 640, 3), dtype=np.uint8))
     req, _ = scan_request_from_dict({"image_b64": b64})
     r = run_scan(req)
-    assert r["quality"]["ok"] is True             # s1 passed...
-    assert r["verdict"] == "RETRY"                # ...but s2 is not implemented
-    assert r["error"]["code"] == "STAGE_FAILURE"
-    assert r["error"]["stage"] == "s2_geometry_detect"
+    assert r["quality"]["ok"] is True                     # s1 passed
+    assert "s2_geometry_detect" not in r["timings_ms"]    # unbuilt = skipped
+    assert "s3_calibration" in r["timings_ms"]            # s3 ran
+    assert r["verdict"] == "RETRY" and r["error"] is None
+
+
+def test_run_scan_internal_error_envelope(monkeypatch):
+    def boom(ctx, frame):
+        raise RuntimeError("kaboom")
+    monkeypatch.setattr(pipeline_module, "_STAGES_IN_ORDER",
+                        (("s1_frame_quality", boom),))
+    b64 = _image_b64(np.zeros((480, 640, 3), np.uint8))
+    req, _ = scan_request_from_dict({"image_b64": b64})
+    r = run_scan(req)
+    assert r["verdict"] == "RETRY"
+    assert r["error"]["code"] == "INTERNAL"
+    assert r["error"]["stage"] == "s1_frame_quality"
+
+
+def test_request_rejects_bad_option_value():
+    req, err = scan_request_from_dict(
+        {"image_b64": "AAAA", "options": {"package_height_cm": "tall"}})
+    assert req is None and err["code"] == "BAD_REQUEST"
+
+
+def test_request_accepts_calibration_options():
+    req, err = scan_request_from_dict({
+        "image_b64": "AAAA",
+        "options": {"package_height_cm": 12.5, "package_width_cm": 8,
+                    "blown": True, "marker_side_mm": 40}})
+    assert err is None
+    assert req.options["package_height_cm"] == 12.5
+    assert req.options["blown"] is True
+    assert req.options["package_width_cm"] == 8.0
 
 
 # --------------------------------------------------------- chaquopy + server

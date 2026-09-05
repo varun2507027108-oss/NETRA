@@ -25,3 +25,12 @@ STAGE_BUDGET_MS = {
     "s7_dossier": 20.0,
     # s8_sync is async — never on the critical path
 }
+
+# ---- Stage 3: metric calibration ------------------------------------------
+ARUCO_MARKER_MM = 40.0           # marker side on the printed fiducial card
+FOCAL_RATIO_DEFAULT = 1.2        # assumed f = ratio x max(w,h) w/o intrinsics
+CYL_THETA_LIMIT_DEG = 80.0       # flatten arc up to this angle from the front
+CYL_MIN_RADIUS_PX = 40.0         # smaller "cylinder" = estimation noise
+CYL_MAX_RADIUS_MM = 250.0        # sanity bound on recovered radius
+PDA_SANITY_CM2 = (1.0, 25000.0)  # PDA outside this range -> not computed
+MAX_RECT_SCALE = 8.0             # rectified extent cap (oblique-marker guard)

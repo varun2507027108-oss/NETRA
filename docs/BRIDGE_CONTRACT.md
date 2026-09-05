@@ -39,9 +39,25 @@ Only `NetraBridge` (Dart) knows a transport exists.
 | `captured_utc` | string | no | ISO-8601; core stamps UTC if absent |
 | `gps` | object | no | `{lat: number, lon: number, accuracy_m?: number}` |
 | `device` | object | no | `{model?, os?, app_build?}` |
-| `options` | object | no | `{institutional?: bool, fast_food?: bool, commodity?: string}` (Rule 26 inputs) |
+| `options` | object | no | see §3.1 |
 
 Unknown keys are ignored (forward compatibility).
+
+### 3.1 options keys
+| Key | Type | Notes |
+|---|---|---|
+| `institutional` / `fast_food` | bool | Rule 26 inputs |
+| `commodity` | string | Rule 26 commodity name (tobacco/cement/...) |
+| `blown` | bool | blown/formed/molded/embossed → Table-I second column |
+| `package_height_cm` | number | package height (Rule 7(4)) |
+| `package_width_cm` | number | flat-face width (rectangular/pouch) |
+| `package_diameter_cm` | number | cylinder body diameter |
+| `total_surface_cm2` | number | for `other`/`blister` shapes |
+| `marker_side_mm` | number | fiducial side override (default 40) |
+| `camera_focal_px` | number | intrinsics when known (solvePnP path) |
+| `cylinder_left_px` / `cylinder_right_px` | int | cylinder silhouette override (s2) |
+
+Invalid values for known keys → `BAD_REQUEST`; unknown keys ignored.
 
 ## 4. ScanResult — exactly these 17 top-level keys, always present
 
@@ -121,8 +137,7 @@ sha256 with Android KeyStore **ECDSA P-256** → Dart calls
 Never throw across the bridge. Every failure is a full ScanResult with
 `error = {code, message, stage?}` and `verdict = "RETRY"`. Map in Dart:
 `BAD_REQUEST` → fix request; `DECODE_ERROR` → re-capture;
-`UNSUPPORTED_VERSION` → hard stop; `STAGE_FAILURE` → "stage unavailable"
-(dev only); `INTERNAL` → report + retry.
+`UNSUPPORTED_VERSION` → hard stop; `STAGE_FAILURE` → an implemented stage failed internally (report + retry); `INTERNAL` → a stage raised an exception; core never leaks tracebacks across the bridge.
 
 ## 10. Rules for the Flutter side (non-negotiable)
 1. `bridge_models.dart` mirrors `schema.py` exactly — no extra fields, no renames.
@@ -166,6 +181,11 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.0.2** — s3 live (aruco-homography + solvePnP scale, cylindrical unwarp,
+  Rule 7(4) PDA). run_scan now SKIPS unimplemented stages (ping advertises
+  them) instead of returning STAGE_FAILURE envelopes; INTERNAL envelope
+  enforced. options extended (additive — §3.1). `quality.prompts` now also
+  carries Stage 3 guidance (fiducial card) on RETRY.
 - **1.0.1** — ping reports s4/s5 live; demo endpoint accepts `tokens[]`; field checks now carry `evidence_bbox` from Stage 5 extraction. No frozen-surface changes.
 - **1.0.0** — initial freeze. Live: `ping`, `scan` (s1 gate + s6 engine),
   demo path. Null until stages land: `geometry` (s2/s3), `ocr` (s4/s5),

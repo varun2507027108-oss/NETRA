@@ -79,7 +79,7 @@ _ANCHORS = {
     FIELD_MFG_ADDRESS: (
         r"\bmfd\.?\s*by\b", r"\bmfg\.?\s*by\b", r"\bmkt?d\.?\s*by\b",
         r"\bmanufactur(?:ed|er|ers|ing)?\s*by\b", r"\bmanufacturers?\b",
-        r"\bimport(?:ed|er|ers)?\b", r"\bpacked\s+by\b",
+        r"\bimport(?:er|ed|ers|ing)?\b", r"\bpacked\s+by\b",
         r"\bmarket(?:ed|er|ing)?\s*by\b",
     ),
     FIELD_CONSUMER_CARE: (

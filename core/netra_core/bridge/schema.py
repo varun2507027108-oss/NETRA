@@ -18,6 +18,7 @@ tuple fails tests/test_bridge_schema.py on purpose.
 from __future__ import annotations
 
 import importlib
+import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -40,6 +41,7 @@ STAGE_NAMES = (
 # modules that exist today; grows one line per stage as s2-s5, s7 land
 _STAGE_MODULES = {
     "s1_frame_quality": "netra_core.stages.s1_frame_quality",
+    "s3_calibration": "netra_core.stages.s3_calibration",
     "s4_ocr": "netra_core.stages.s4_ocr",
     "s5_field_extract": "netra_core.stages.s5_field_extract",
     "s6_metrology": "netra_core.stages.s6_metrology",
@@ -143,14 +145,12 @@ def scan_request_from_dict(d: Any) -> tuple:
     if device is not None and not isinstance(device, dict):
         return None, _err("BAD_REQUEST", "device must be an object")
 
-    raw_opts = d.get("options") or {}
-    if not isinstance(raw_opts, dict):
+    raw_opts = d.get("options")
+    if raw_opts is not None and not isinstance(raw_opts, dict):
         return None, _err("BAD_REQUEST", "options must be an object")
-    options = {
-        "institutional": bool(raw_opts.get("institutional", False)),
-        "fast_food": bool(raw_opts.get("fast_food", False)),
-        "commodity": str(raw_opts.get("commodity") or ""),
-    }
+    options, opt_err = _parse_options(raw_opts)
+    if opt_err is not None:
+        return None, opt_err
 
     return ScanRequest(
         image_b64=image_b64,
@@ -161,6 +161,45 @@ def scan_request_from_dict(d: Any) -> tuple:
         device=device,
         options=options,
     ), None
+
+
+_OPT_FLOATS = ("package_height_cm", "package_width_cm", "package_diameter_cm",
+               "total_surface_cm2", "marker_side_mm", "camera_focal_px")
+_OPT_INTS = ("cylinder_left_px", "cylinder_right_px")
+
+
+def _parse_options(raw):
+    """Whitelisted, type-checked options (contract section 3). Unknown keys
+    are ignored (forward compatibility); known keys with garbage values
+    fail as BAD_REQUEST."""
+    if raw is None:
+        raw = {}
+    opts = {
+        "institutional": bool(raw.get("institutional", False)),
+        "fast_food": bool(raw.get("fast_food", False)),
+        "commodity": str(raw.get("commodity") or ""),
+        "blown": bool(raw.get("blown", False)),
+    }
+    for key in _OPT_FLOATS:
+        v = raw.get(key)
+        if v is None or v == "":
+            continue
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return None, _err("BAD_REQUEST", f"options.{key} must be a number")
+        if not math.isfinite(f) or f <= 0:
+            return None, _err("BAD_REQUEST", f"options.{key} must be positive")
+        opts[key] = f
+    for key in _OPT_INTS:
+        v = raw.get(key)
+        if v is None or v == "":
+            continue
+        try:
+            opts[key] = int(v)
+        except (TypeError, ValueError):
+            return None, _err("BAD_REQUEST", f"options.{key} must be an integer")
+    return opts, None
 
 
 # --------------------------------------------------------------- serialization
