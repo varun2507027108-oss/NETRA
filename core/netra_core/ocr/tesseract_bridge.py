@@ -29,6 +29,8 @@ import os
 import cv2
 import numpy as np
 
+from ..context import BBox, OCRToken
+
 try:
     import pytesseract
     from pytesseract import Output
@@ -44,6 +46,45 @@ INSTALL_HINT = (
     "  sudo apt install tesseract-ocr              (linux binary)\n"
     "  or set TESSERACT_CMD=<path to tesseract.exe>"
 )
+
+
+def _merge_line_tokens(tokens):
+    """Word tokens -> LINE tokens.
+
+    Stage 5's anchor vocabulary is line-level ("Net Quantity", "Unit Sale
+    Price", "Mfd. by" must appear inside ONE token's text to anchor);
+    Tesseract emits words. Group words into geometric lines (vertical
+    overlap >= 0.4 with the growing line — ML Kit line semantics) so every
+    engine registered into s4 normalizes to the same token granularity.
+    """
+    if not tokens:
+        return []
+    lines: list = []
+    for t in sorted(tokens, key=lambda t: (t.bbox.y, t.bbox.x)):
+        placed = False
+        for line in lines:
+            ys = [o.bbox.y for o in line]
+            y2s = [o.bbox.y2 for o in line]
+            lh = max(y2s) - min(ys)
+            inter = min(max(y2s), t.bbox.y2) - max(min(ys), t.bbox.y)
+            if inter > 0 and inter / max(1, min(lh, t.bbox.h)) >= 0.4:
+                line.append(t)
+                placed = True
+                break
+        if not placed:
+            lines.append([t])
+    merged = []
+    for line in lines:
+        line.sort(key=lambda t: t.bbox.x)
+        merged.append(OCRToken(
+            text=" ".join(t.text for t in line),
+            bbox=BBox(min(t.bbox.x for t in line),
+                      min(t.bbox.y for t in line),
+                      max(t.bbox.x2 for t in line) - min(t.bbox.x for t in line),
+                      max(t.bbox.y2 for t in line) - min(t.bbox.y for t in line)),
+            conf=round(min(t.conf for t in line), 3),
+            engine=line[0].engine, lang=line[0].lang))
+    return merged
 
 
 def _apply_cmd_override() -> None:
@@ -100,8 +141,10 @@ def make_engine(psm: int = 11, lang: str = "eng", min_conf: float = 35.0,
                 continue
             if not text or conf < min_conf:
                 continue
-            if not any(ch.isalnum() for ch in text):
-                continue                       # punctuation noise
+            if not any(ch.isalnum() or ch == "/" for ch in text):
+                continue    # punctuation noise — but '/' survives: the USP
+                            # declaration ("Rs 0.25 / g") needs the slash to
+                            # parse; dropping it manufactures a false 6(11)
             cw, ch = int(data["width"][i]), int(data["height"][i])
             if cw <= 0 or ch <= 0:
                 continue
@@ -113,7 +156,7 @@ def make_engine(psm: int = 11, lang: str = "eng", min_conf: float = 35.0,
                           max(1, int(round(ch / scale)))),
                 conf=round(min(1.0, conf / 100.0), 3),
                 engine="tesseract", lang=lang))
-        return tokens
+        return _merge_line_tokens(tokens)
 
     return engine
 

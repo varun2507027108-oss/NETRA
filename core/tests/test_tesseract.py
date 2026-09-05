@@ -37,18 +37,25 @@ def _canvas(texts, w=1000, h=1400):
     return frame
 
 
-def test_reads_printed_text():
+def test_reads_printed_text_as_line_tokens():
     engine = tesseract_bridge.make_engine()
     tokens = engine(_canvas(["Net Quantity: 70 g",
                              "MRP Rs 50.00 (incl. of all taxes)"]))
-    assert len(tokens) >= 6
+    assert 1 <= len(tokens) <= 4          # line-level tokens, not words
     joined = " ".join(t.text for t in tokens)
     assert "Quantity" in joined and "70" in joined
-    assert all(0.0 <= t.conf <= 1.0 for t in tokens)
-    assert all(t.engine == "tesseract" for t in tokens)
+    assert "MRP" in joined and "50.00" in joined
     for t in tokens:
+        assert 0.0 <= t.conf <= 1.0 and t.engine == "tesseract"
         assert 0 <= t.bbox.x and t.bbox.x2 <= 1000
         assert 0 <= t.bbox.y and t.bbox.y2 <= 1400
+
+
+def test_slash_survives_for_usp():
+    engine = tesseract_bridge.make_engine()
+    tokens = engine(_canvas(["Unit Sale Price Rs 0.25 / g"]))
+    assert any("/" in t.text for t in tokens)
+    assert any("0.25" in t.text for t in tokens)
 
 
 def test_pipeline_end_to_end_with_fiducial():
@@ -85,6 +92,6 @@ def test_pipeline_end_to_end_with_fiducial():
     assert r["quality"]["ok"] is True
     assert "s3_calibration" in r["timings_ms"]
     assert r["ocr"]["engines_used"] == ["tesseract"]
-    assert len(r["ocr"]["tokens"]) >= 10
+    assert len(r["ocr"]["tokens"]) >= 5
     assert "net_qty" in r["fields"]
     assert r["fields"]["net_qty"]["unit"] == "g"
