@@ -1,5 +1,7 @@
 # NETRA — नेत्र
 
+[![CI](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml/badge.svg)](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml)
+
 **Offline-first statutory compliance auditor for pre-packaged commodities.**
 SIH26034 · Legal Metrology Act, 2009 · Legal Metrology (Packaged Commodities) Rules, 2011
 

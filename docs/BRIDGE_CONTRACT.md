@@ -1,4 +1,4 @@
-# NETRA Bridge Contract — v1.2.3
+# NETRA Bridge Contract — v1.2.4
 
 Single source of truth for the JSON seam between `netra_core` (Python) and
 the Flutter client. Machine twin: `core/netra_core/bridge/schema.py`.
@@ -14,7 +14,7 @@ major (verify via `ping`).
 
 | Mode | Transport | Path |
 |---|---|---|
-| Android (production) | MethodChannel `netra.core` | Dart → Kotlin → Chaquopy in-process call to `netra_core.bridge.chaquopy_api` (`scan(json) -> json`) |
+| Android (production) | MethodChannel `netra.core` | Dart → Kotlin → Chaquopy in-process call to `netra_core.bridge.chaquopy_api` (`scan(json) -> json`). MethodChannel arguments and returns are **JSON-encoded strings**; the Kotlin handler (`native/android/NetraCorePlugin.kt`) is a faithful pipe with zero statutory logic. |
 | Desktop / emulator dev | HTTP | `http://127.0.0.1:8734` — start with `python -m netra_core.bridge.server` |
 
 Only `NetraBridge` (Dart) knows a transport exists.
@@ -159,7 +159,8 @@ use it to gray out UI for unbuilt stages (and label the active OCR tier in repor
 
 The core never holds private keys. PASS scans are recorded too (compliance
 records, no dossier unless `options.dossier_on_pass`); RETRY never lands
-in the ledger.
+in the ledger. Payload regex (pinned in `tests/test_attach_signature.py` and
+`NetraKeystore.kt`): `^NETRA-DOSSIER-v1\|[0-9a-f]{32}\|[0-9a-f]{64}$`.
 
 ## 9. Error semantics
 Never throw across the bridge. Every failure is a full ScanResult with
@@ -209,6 +210,11 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.2.4** — Android native seam defined: channel carries JSON strings;
+  `native/android/` (plugin, KeyStore signer, smoke spike) + integration
+  doc with the Chaquopy decision tree. Signature payload regex pinned in
+  tests and Kotlin. chaquopy_api imports pipeline lazily so ping/
+  configure/queue_status never require the vision stack.
 - **1.2.3** — no payload-surface changes. s1 now populates
   `quality.glare_bbox`; every RETRY now carries `quality.prompts`
   guidance (s4/s5). Tooling: `netra_core.qa.contract` executable

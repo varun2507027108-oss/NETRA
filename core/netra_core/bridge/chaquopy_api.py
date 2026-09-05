@@ -18,8 +18,6 @@ from .. import paths
 from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
     scan_request_from_dict
 from ..persistence import queue_db
-from ..pipeline import attach_signature as pipeline_attach
-from ..pipeline import run_scan
 from ..sync import client as sync_client
 
 _SIG_ERR = {"schema_version": SCHEMA_VERSION, "scan_id": "",
@@ -28,7 +26,8 @@ _SIG_ERR = {"schema_version": SCHEMA_VERSION, "scan_id": "",
 
 
 def scan(request_json: str) -> str:
-    try:
+    from ..pipeline import run_scan    # lazy: vision deps stay out of the
+    try:                               # ping/configure/queue_status paths
         body = json.loads(request_json)
     except (json.JSONDecodeError, TypeError) as e:
         return json.dumps(error_result("BAD_REQUEST", f"invalid JSON: {e}"))
@@ -77,6 +76,7 @@ def configure(config_json: str) -> str:
 
 
 def attach_signature(body_json: str) -> str:
+    from ..pipeline import attach_signature as pipeline_attach   # lazy
     try:
         body = json.loads(body_json)
         if not isinstance(body, dict):

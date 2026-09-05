@@ -1,4 +1,5 @@
 import json
+import re
 
 import pytest
 
@@ -121,3 +122,11 @@ def test_chaquopy_endpoint_round_trip():
     out = json.loads(chaquopy_api.attach_signature(json.dumps(
         {"scan_id": r["scan_id"], "signature": sig, "cert_pem": cert})))
     assert out["accepted"] and out["verified"]
+
+
+def test_signature_payload_format_is_pinned():
+    """The payload law — mirrored in NetraKeystore.kt and BRIDGE_CONTRACT
+    section 8. If this regex and the Kotlin string ever disagree, the
+    Android round-trip breaks; this test is the tripwire."""
+    payload = crypto.sign_payload("a" * 32, "b" * 64).decode("utf-8")
+    assert re.fullmatch(r"NETRA-DOSSIER-v1\|[0-9a-f]{32}\|[0-9a-f]{64}", payload)
