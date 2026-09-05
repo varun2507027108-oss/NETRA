@@ -8,6 +8,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.11", "3.13"]
     steps:
@@ -24,5 +25,18 @@ jobs:
           python -m pip install -e backend
       - name: pytest
         working-directory: core
-        run: python -m pytest -v --tb=short
+        run: |
+          set -o pipefail
+          python -m pytest -v --tb=short 2>&1 | tee pytest_output.txt
+        shell: bash
+      - name: publish test summary
+        if: always()
+        working-directory: core
+        run: |
+          echo "### Pytest Summary (${{ matrix.python }})" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 60 pytest_output.txt >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
 
