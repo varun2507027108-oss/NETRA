@@ -29,14 +29,32 @@ jobs:
           set -o pipefail
           python -m pytest -v --tb=short 2>&1 | tee pytest_output.txt
         shell: bash
-      - name: publish test summary
+      - name: annotate failures
         if: always()
-        working-directory: core
         run: |
-          echo "### Pytest Summary (${{ matrix.python }})" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 60 pytest_output.txt >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        shell: bash
+          python -c '
+          import os
+          path = "core/pytest_output.txt"
+          if os.path.exists(path):
+              with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                  content = f.read()
+              for line in content.splitlines():
+                  if line.startswith("FAILED ") or line.startswith("ERROR "):
+                      print(f"::error title=Pytest Failure::{line}")
+              # Print the failures section
+              if "=== FAILURES ===" in content:
+                  fail_sec = content.split("=== FAILURES ===")[1].split("=== short test summary info ===")[0]
+                  for chunk in fail_sec.strip().split("\n\n")[:5]:
+                      first_line = chunk.splitlines()[0] if chunk.splitlines() else "Failure"
+                      details = "%0A".join(chunk.splitlines()[:25])
+                      print(f"::error title={first_line}::{details}")
+          '
+      - name: upload pytest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output-${{ matrix.python }}
+          path: core/pytest_output.txt
+
 
 
