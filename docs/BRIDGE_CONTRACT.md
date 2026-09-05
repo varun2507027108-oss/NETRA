@@ -24,9 +24,10 @@ Only `NetraBridge` (Dart) knows a transport exists.
 | Method | Direction | Request | Response |
 |---|---|---|---|
 | `ping` | Dart → core | `{}` | ping payload (§6) |
-| `configure` | Dart → core | `{data_dir: string}` | `{data_dir, dossier_dir, queue_db}` — call ONCE at startup (Android: app-internal storage) |
+| `configure` | Dart → core | `{data_dir?, sync_url?, sync_token?}` | `{data_dir?, dossier_dir?, queue_db?, sync_url?}` — call at startup; `sync_url` points at the institutional gateway (…/ingest is appended) |
 | `scan` | Dart → core | ScanRequest (§3) | ScanResult (§4) |
 | `attach_signature` | Dart → core | `{scan_id, signature, cert_pem}` (§8) | `{schema_version, scan_id, accepted, sig_status, verified, error?}` |
+| `sync_now` | Dart → core | `{}` | `{schema_version, attempted, synced, failed, deferred, remaining, offline, error?}` — drains the ledger; safe to call repeatedly |
 | `queue_status` | Dart → core | `{}` | `{schema_version, total, pending_sync, signed, dossiers}` |
 | `get_scan` | — | **reserved v1.2** (history detail) | — |
 
@@ -117,7 +118,7 @@ preview). Scale overlays by displayed-image size only.
 
 ## 6. ping payload
 `{schema_version, core_version, channel, capabilities: {stages_implemented:
-string[], stages_planned: string[], dossier: bool, signing: "platform"}}` —
+string[], stages_planned: string[], dossier: bool, signing: "platform", sync: bool}}` —
 use it to gray out UI for unbuilt stages.
 
 ## 7. Enums
@@ -199,6 +200,10 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.2.0** — spec stage 8 live: `sync_now` + gateway config in `configure`,
+  sync envelope §13, capabilities.sync. Institutional gateway
+  (`backend/`, SQLite/PostgreSQL+PostGIS) with ingest, stats, heatmap,
+  e-Daakhil & NCH 1915 export endpoints.
 - **1.1.0** — s7 live: PDF dossiers (Parts A–F, BSA §63(4) certificate),
   evidence ledger (SQLite WAL), `attach_signature` + `configure` +
   `queue_status` defined and implemented. Completed scans (PASS/VIOLATION)
@@ -212,3 +217,22 @@ Never throw across the bridge. Every failure is a full ScanResult with
 - **1.0.0** — initial freeze. Live: `ping`, `scan` (s1 gate + s6 engine),
   demo path. Null until stages land: `geometry` (s2/s3), `ocr` (s4/s5),
   `dossier` (s7). Reserved: `attach_signature`, `get_scan`, `queue_status`.
+
+## 13. Sync envelope (`netra.scan.v1`) — ledger → gateway
+
+| Key | Type | Notes |
+|---|---|---|
+| `kind` | `"netra.scan.v1"` | envelope discriminator |
+| `scan_id` / `verdict` / `created_utc` | string | ledger identity; verdict ∈ PASS/VIOLATION |
+| `image_sha256` / `dossier_sha256` | string\|null | evidence chain |
+| `signature` / `cert_pem` | string\|null | platform ECDSA P-256 |
+| `sig_verified` / `sig_status` | bool / string | verification state |
+| `attempts` | int | sync attempts before success |
+| `result` | object | full contract ScanResult (§4) |
+
+Rules: the device-local dossier PATH never syncs. Ledger rows are never
+deleted; `sync_state` only advances `pending → synced | failed`. RETRY
+scans never enter the ledger. Gateway contract: `POST /ingest` is
+idempotent on scan_id; 2xx+accepted = synced (duplicates included);
+400/422 = failed permanently; 5xx/offline = retry later.
+

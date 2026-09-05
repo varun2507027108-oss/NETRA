@@ -40,3 +40,5 @@ Thumbs.db
 
 # NETRA runtime data
 netra_data/
+netra_backend.db
+backend/*.db

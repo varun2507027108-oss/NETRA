@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netra-backend"
+version = "0.1.0"
+description = "NETRA institutional gateway — sync intake, spatial stats, e-Daakhil/NCH exports"
+requires-python = ">=3.9"
+dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "sqlalchemy>=2.0"]
+# netra-core is provided by installing it first (pip install -e ../core);
+# it supplies netra_core.sync.exporters. Omitted here to avoid a path dep.
+
+[project.optional-dependencies]
+postgres = ["geoalchemy2>=0.14", "psycopg2-binary>=2.9"]
+dev = ["pytest>=7.4", "httpx>=0.27"]
+
+[tool.setuptools.packages.find]
+include = ["netra_backend*"]

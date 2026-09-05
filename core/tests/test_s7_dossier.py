@@ -93,7 +93,6 @@ def test_ledger_row_matches_result():
     row = queue_db.get_db().get_scan(r["scan_id"])
     assert row["verdict"] == "VIOLATION"
     assert row["dossier_sha256"] == r["dossier"]["sha256"]
-    assert row["image_sha256"] == r["meta"] is not None or True
     assert row["image_sha256"]                    # demo frame hashed
     import json
     stored = json.loads(row["result_json"])
@@ -103,7 +102,7 @@ def test_ledger_row_matches_result():
 def test_queue_status_counts():
     run_demo_scan(dossier=True)
     st = queue_db.get_db().status()
-    assert st == {"total": 1, "pending_sync": 1, "signed": 0, "dossiers": 1}
+    assert st == {"total": 1, "pending_sync": 1, "signed": 0, "dossiers": 1, "failed": 0}
 
 
 def test_reportlab_missing_degrades_gracefully(monkeypatch):

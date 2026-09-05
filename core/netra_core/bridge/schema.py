@@ -79,7 +79,14 @@ def implemented_stages() -> tuple:
 
 def ping_payload() -> dict:
     impl = implemented_stages()
-    planned = tuple(s for s in STAGE_NAMES if s not in impl) + ("s8_sync",)
+    planned = tuple(s for s in STAGE_NAMES if s not in impl)
+    try:
+        import netra_core.sync            # noqa: F401
+        sync_ready = True
+    except Exception:
+        sync_ready = False
+    if not sync_ready:
+        planned = planned + ("s8_sync",)
     return {
         "schema_version": SCHEMA_VERSION,
         "core_version": CORE_VERSION,
@@ -89,6 +96,7 @@ def ping_payload() -> dict:
             "stages_planned": list(planned),
             "dossier": "s7_dossier" in impl,
             "signing": "platform",          # KeyStore/Secure Enclave side
+            "sync": sync_ready,
         },
     }
 

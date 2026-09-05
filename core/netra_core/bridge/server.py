@@ -27,6 +27,7 @@ from ..context import BBox, OCRToken
 from ..persistence import queue_db
 from ..pipeline import attach_signature as pipeline_attach
 from ..pipeline import run_demo_scan, run_scan
+from ..sync import client as sync_client
 
 HOST, PORT = "127.0.0.1", 8734
 
@@ -88,14 +89,37 @@ def attach_signature(body: dict) -> dict:
 
 @app.post("/configure")
 def configure(body: dict) -> dict:
+    out = {}
     dd = body.get("data_dir")
-    if not isinstance(dd, str) or not dd.strip():
+    if dd is not None:
+        if not isinstance(dd, str) or not dd.strip():
+            return {"error": {"code": "BAD_REQUEST",
+                              "message": "'data_dir' must be a non-empty string"}}
+        p = paths.set_data_dir(dd)
+        queue_db.reset()
+        out.update({"data_dir": str(p), "dossier_dir": str(paths.dossier_dir()),
+                    "queue_db": str(paths.queue_db_path())})
+    sync_url = body.get("sync_url")
+    if sync_url is not None:
+        if not isinstance(sync_url, str):
+            return {"error": {"code": "BAD_REQUEST",
+                              "message": "'sync_url' must be a string"}}
+        token = body.get("sync_token")
+        if token is not None and not isinstance(token, str):
+            return {"error": {"code": "BAD_REQUEST",
+                              "message": "'sync_token' must be a string"}}
+        sync_client.set_gateway(sync_url, token)
+        out["sync_url"] = sync_client.gateway()["url"]
+    if not out:
         return {"error": {"code": "BAD_REQUEST",
-                          "message": "'data_dir' (string) is required"}}
-    p = paths.set_data_dir(dd)
-    queue_db.reset()
-    return {"data_dir": str(p), "dossier_dir": str(paths.dossier_dir()),
-            "queue_db": str(paths.queue_db_path())}
+                          "message": "provide data_dir and/or sync_url"}}
+    return out
+
+
+@app.post("/sync")
+def sync() -> dict:
+    return sync_client.sync_now()
+
 
 
 @app.get("/queue/status")

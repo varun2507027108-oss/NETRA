@@ -32,9 +32,29 @@ CREATE TABLE IF NOT EXISTS scans (
     sig_verified   INTEGER NOT NULL DEFAULT 0,
     sig_status     TEXT NOT NULL DEFAULT 'pending',
     sync_state     TEXT NOT NULL DEFAULT 'pending',
-    synced_utc     TEXT
+    synced_utc     TEXT,
+    attempts       INTEGER NOT NULL DEFAULT 0,
+    last_attempt_utc TEXT,
+    last_error     TEXT
 );
 """
+
+# Columns added after the first release; applied to existing ledgers.
+_MIGRATIONS = (
+    ("attempts", "ALTER TABLE scans ADD COLUMN attempts "
+                 "INTEGER NOT NULL DEFAULT 0"),
+    ("last_attempt_utc", "ALTER TABLE scans ADD COLUMN last_attempt_utc TEXT"),
+    ("last_error", "ALTER TABLE scans ADD COLUMN last_error TEXT"),
+)
+
+
+def _migrate(conn) -> None:
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(scans)")}
+    for name, ddl in _MIGRATIONS:
+        if name not in cols:
+            conn.execute(ddl)
+    conn.commit()
+
 
 _LOCK = threading.Lock()
 _DB: Optional["QueueDB"] = None
@@ -56,6 +76,7 @@ class QueueDB:
         with self._lock:
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
+            _migrate(self._conn)
 
     # ---- writes --------------------------------------------------------
     def record_scan(self, scan_id: str, verdict: str, *,
@@ -114,6 +135,23 @@ class QueueDB:
                 "WHERE scan_id=?", (_now(), scan_id))
             self._conn.commit()
 
+    def note_attempt(self, scan_id: str, error: str) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE scans SET attempts=attempts+1, last_attempt_utc=?, "
+                "last_error=? WHERE scan_id=? AND sync_state='pending'",
+                (_now(), error, scan_id))
+            self._conn.commit()
+
+    def mark_sync_failed(self, scan_id: str, error: str) -> None:
+        """Server rejected the envelope (400/422): permanent, needs a human."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE scans SET sync_state='failed', attempts=attempts+1, "
+                "last_attempt_utc=?, last_error=? WHERE scan_id=?",
+                (_now(), error, scan_id))
+            self._conn.commit()
+
     # ---- reads ---------------------------------------------------------
     def get_scan(self, scan_id: str) -> Optional[dict]:
         with self._lock:
@@ -121,11 +159,15 @@ class QueueDB:
                 "SELECT * FROM scans WHERE scan_id=?", (scan_id,)).fetchone()
         return dict(row) if row is not None else None
 
-    def pending_sync(self) -> list:                   # s8
+    def pending_sync(self, limit=None) -> list:
+        sql = ("SELECT * FROM scans WHERE sync_state='pending' "
+               "ORDER BY created_utc")
+        params = ()
+        if limit is not None:
+            sql += " LIMIT ?"
+            params = (int(limit),)
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT * FROM scans WHERE sync_state='pending' "
-                "ORDER BY created_utc").fetchall()
+            rows = self._conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
     def status(self) -> dict:
@@ -133,6 +175,7 @@ class QueueDB:
             row = self._conn.execute(
                 "SELECT COUNT(*) AS total,"
                 " COALESCE(SUM(sync_state='pending'),0) AS pending_sync,"
+                " COALESCE(SUM(sync_state='failed'),0) AS failed,"
                 " COALESCE(SUM(sig_status='signed'),0) AS signed,"
                 " COALESCE(SUM(dossier_sha256 IS NOT NULL),0) AS dossiers"
                 " FROM scans").fetchone()

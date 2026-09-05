@@ -20,6 +20,7 @@ from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
 from ..persistence import queue_db
 from ..pipeline import attach_signature as pipeline_attach
 from ..pipeline import run_scan
+from ..sync import client as sync_client
 
 _SIG_ERR = {"schema_version": SCHEMA_VERSION, "scan_id": "",
             "accepted": False, "sig_status": "pending", "verified": False,
@@ -49,15 +50,30 @@ def configure(config_json: str) -> str:
     except (json.JSONDecodeError, ValueError, TypeError):
         return json.dumps({"error": {"code": "BAD_REQUEST",
                                      "message": "invalid JSON"}})
+    out = {}
     dd = body.get("data_dir")
-    if not isinstance(dd, str) or not dd.strip():
+    if dd is not None:
+        if not isinstance(dd, str) or not dd.strip():
+            return json.dumps({"error": {"code": "BAD_REQUEST",
+                                         "message": "'data_dir' required"}})
+        p = paths.set_data_dir(dd)
+        queue_db.reset()
+        out.update({"data_dir": str(p),
+                    "dossier_dir": str(paths.dossier_dir()),
+                    "queue_db": str(paths.queue_db_path())})
+    sync_url = body.get("sync_url")
+    if sync_url is not None:
+        if not isinstance(sync_url, str):
+            return json.dumps({"error": {"code": "BAD_REQUEST",
+                                         "message": "'sync_url' must be a string"}})
+        sync_client.set_gateway(sync_url, body.get("sync_token")
+                                if isinstance(body.get("sync_token"), str)
+                                else None)
+        out["sync_url"] = sync_client.gateway()["url"]
+    if not out:
         return json.dumps({"error": {"code": "BAD_REQUEST",
-                                     "message": "'data_dir' required"}})
-    p = paths.set_data_dir(dd)
-    queue_db.reset()
-    return json.dumps({"data_dir": str(p),
-                       "dossier_dir": str(paths.dossier_dir()),
-                       "queue_db": str(paths.queue_db_path())})
+                                     "message": "provide data_dir and/or sync_url"}})
+    return json.dumps(out)
 
 
 def attach_signature(body_json: str) -> str:
@@ -77,3 +93,7 @@ def attach_signature(body_json: str) -> str:
 def queue_status() -> str:
     return json.dumps({"schema_version": SCHEMA_VERSION,
                        **queue_db.get_db().status()})
+
+
+def sync_now() -> str:
+    return json.dumps(sync_client.sync_now())
