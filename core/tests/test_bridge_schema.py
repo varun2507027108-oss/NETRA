@@ -183,3 +183,18 @@ def test_server_health_and_demo():
     assert demo.status_code == 200
     body = demo.json()
     assert body["verdict"] == "VIOLATION" and body["summary"]["total"] == 11
+
+
+def test_demo_uses_real_extraction():
+    r = run_demo_scan()
+    assert set(r["timings_ms"]) == {"s4_ocr", "s5_field_extract", "s6_metrology"}
+    assert r["ocr"]["tokens"] and r["ocr"]["engines_used"] == ["mlkit"]
+    assert r["fields"]["net_qty"]["conf"] > 0.0
+
+
+def test_demo_checks_carry_evidence():
+    r = run_demo_scan()
+    evidence = [c["evidence_bbox"] for c in r["checks"]
+                if c["rule"] == "6(1)(c)"]
+    assert evidence and evidence[0] is not None and len(evidence[0]) == 4
+

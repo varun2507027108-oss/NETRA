@@ -166,6 +166,7 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.0.1** — ping reports s4/s5 live; demo endpoint accepts `tokens[]`; field checks now carry `evidence_bbox` from Stage 5 extraction. No frozen-surface changes.
 - **1.0.0** — initial freeze. Live: `ping`, `scan` (s1 gate + s6 engine),
   demo path. Null until stages land: `geometry` (s2/s3), `ocr` (s4/s5),
   `dossier` (s7). Reserved: `attach_signature`, `get_scan`, `queue_status`.

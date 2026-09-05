@@ -2,7 +2,8 @@
 
 The legal brain of NETRA. Consumes Stage 5's field map and Stage 3's
 metric calibration; emits one Check per statutory obligation decidable
-from decoded text and measurements:
+from decoded text and measurements. Every field-derived check carries the
+field's bbox as evidence (drawn by the Flutter overlay / dossier).
 
   Rule 6(1)(a)   manufacturer/packer/importer + PIN      rules/declarations
   Rule 6(1)(aa)  country of origin (imported)            rules/declarations
@@ -18,7 +19,6 @@ from decoded text and measurements:
 
 Rule 6(10) (e-commerce listings) is out of scope for physical scans.
 Stdlib + rules only — identical on desktop and on device via Chaquopy.
-Designed to run exactly once per PipelineContext.
 """
 from __future__ import annotations
 
@@ -67,16 +67,24 @@ def _quantity(ctx: PipelineContext):
     return None, None
 
 
+def _evidence(ctx: PipelineContext, key: Optional[str]):
+    if key is None:
+        return None
+    fv = ctx.fields.get(key)
+    return fv.bbox if fv is not None else None
+
+
 def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
     """Evaluate every statutory check; returns the Checks added by this stage."""
     opts = options or {}
     first = len(ctx.checks)
     t0 = time.perf_counter()
 
-    def add(rule, ok, message):
+    def add(rule, ok, message, field=None):
         status = (CheckStatus.NA if ok is None
                   else CheckStatus.PASS if ok else CheckStatus.FAIL)
-        return ctx.add_check(rule, status, message)
+        return ctx.add_check(rule, status, message,
+                             evidence=_evidence(ctx, field))
 
     if not ctx.fields:
         ctx.add_stage("s6_metrology", ok=False,
@@ -114,7 +122,8 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
         add("13", False,
             f"Prohibited unit syntax '{h.token}' in "
             f"{decl.FIELD_LABELS.get(key, key)} — statutory symbol "
-            f"'{h.suggestion}' required. {citation('13')}")
+            f"'{h.suggestion}' required. {citation('13')}",
+            field=key)
     else:
         add("13", True,
             "No prohibited unit symbols (gms, grm, kilo, kgs, ltr, cc, pkts, doz).")
@@ -122,20 +131,21 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
     # ---- Rule 6(1)(c): net quantity ------------------------------------------
     raw = _raw(ctx, "net_qty")
     if raw is None:
-        add("6(1)(c)", False, "Net quantity declaration not detected.")
+        add("6(1)(c)", False, "Net quantity declaration not detected.",
+            field="net_qty")
     else:
         r = decl.check_net_quantity(raw)
-        add("6(1)(c)", r.ok, r.detail)
+        add("6(1)(c)", r.ok, r.detail, field="net_qty")
 
-    # ---- Rule 6(1)(e): MRP ----------------------------------------------------
+    # ---- Rule 6(1)(e): MRP -----------------------------------------------------
     raw = _raw(ctx, "mrp")
     if raw is None:
-        add("6(1)(e)", False, "MRP declaration not detected.")
+        add("6(1)(e)", False, "MRP declaration not detected.", field="mrp")
     else:
         r = decl.check_mrp(raw)
-        add("6(1)(e)", r.ok, r.detail)
+        add("6(1)(e)", r.ok, r.detail, field="mrp")
 
-    # ---- Rule 6(11): unit sale price -------------------------------------------
+    # ---- Rule 6(11): unit sale price --------------------------------------------
     mrp_val = _money(ctx)
     usp_raw = _raw(ctx, "usp")
     if mrp_val is not None and qty_val is not None:
@@ -144,47 +154,52 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
             mrp_val, qty_val, qty_unit,
             declared=declared.value if declared is not None else None,
             declared_unit=declared.unit if declared is not None else None)
-        add("6(11)", r.compliant, r.detail)
+        add("6(11)", r.compliant, r.detail, field="usp")
     else:
-        add("6(11)", None, "USP not evaluable — MRP or net quantity missing.")
+        add("6(11)", None, "USP not evaluable — MRP or net quantity missing.",
+            field="usp")
 
-    # ---- Rule 6(1)(d): date of manufacture --------------------------------------
+    # ---- Rule 6(1)(d): date of manufacture ----------------------------------------
     raw = _raw(ctx, "mfg_date")
     if raw is None:
-        add("6(1)(d)", False, "Date of manufacture / packing not detected.")
+        add("6(1)(d)", False, "Date of manufacture / packing not detected.",
+            field="mfg_date")
     else:
         r = decl.check_mfg_date(raw)
-        add("6(1)(d)", r.ok, r.detail)
+        add("6(1)(d)", r.ok, r.detail, field="mfg_date")
 
-    # ---- Rule 6(1)(a): manufacturer / packer / importer ---------------------------
+    # ---- Rule 6(1)(a): manufacturer / packer / importer ------------------------------
     raw = _raw(ctx, "mfg_address")
     if raw is None:
         add("6(1)(a)", False,
-            "Manufacturer / packer / importer details not detected.")
+            "Manufacturer / packer / importer details not detected.",
+            field="mfg_address")
     else:
         r = decl.check_address(raw)
-        add("6(1)(a)", r.ok, r.detail)
+        add("6(1)(a)", r.ok, r.detail, field="mfg_address")
 
-    # ---- Rule 6(1)(aa): country of origin ------------------------------------------
+    # ---- Rule 6(1)(aa): country of origin ---------------------------------------------
     origin_raw = _raw(ctx, "origin")
-    imported = decl.looks_imported(_raw(ctx, "mfg_address") or "", origin_raw or "")
+    imported = decl.looks_imported(_raw(ctx, "mfg_address") or "",
+                                   origin_raw or "")
     r = decl.check_country_of_origin(origin_raw or "", imported_hint=imported)
-    add("6(1)(aa)", r.ok, r.detail)
+    add("6(1)(aa)", r.ok, r.detail, field="origin")
 
-    # ---- Rule 6(1)(n): consumer care -------------------------------------------------
+    # ---- Rule 6(1)(n): consumer care -----------------------------------------------------
     raw = _raw(ctx, "consumer_care")
     if raw is None:
-        add("6(1)(n)", False, "Consumer care details not detected.")
+        add("6(1)(n)", False, "Consumer care details not detected.",
+            field="consumer_care")
     else:
         r = decl.check_consumer_care(raw)
-        add("6(1)(n)", r.ok, r.detail)
+        add("6(1)(n)", r.ok, r.detail, field="consumer_care")
 
-    # ---- Rule 6(1)(b): common / generic name ------------------------------------------
+    # ---- Rule 6(1)(b): common / generic name ----------------------------------------------
     r = decl.check_presence(_raw(ctx, "product_name"),
                             decl.FIELD_LABELS["product_name"])
-    add("6(1)(b)", r.ok, r.detail)
+    add("6(1)(b)", r.ok, r.detail, field="product_name")
 
-    # ---- Rule 7: Table-I font heights ---------------------------------------------------
+    # ---- Rule 7: Table-I font heights --------------------------------------------------------
     if ctx.pda_cm2 is None:
         add("7", None,
             "PDA not computed (Stage 3 unavailable) — font heights not evaluated.")
@@ -194,16 +209,17 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
             label = label[0].upper() + label[1:]
             height = ctx.font_heights.get(key)
             if height is None:
-                add("7", None, f"{label} font height not measured.")
+                add("7", None, f"{label} font height not measured.", field=key)
                 continue
             ok, required = font_height_ok(
                 ctx.pda_cm2, height, ctx.blown_or_molded, FONT_TOL_MM)
             add("7", ok,
                 f"{label}: measured {height:.2f} mm vs required {required:.1f} mm "
                 f"({'blown/molded/embossed' if ctx.blown_or_molded else 'normal print'}, "
-                f"PDA {ctx.pda_cm2:.0f} cm²).")
+                f"PDA {ctx.pda_cm2:.0f} cm²).",
+                field=key)
 
-    # ---- Rule 7(3): character width ------------------------------------------------------
+    # ---- Rule 7(3): character width ------------------------------------------------------------
     if ctx.glyphs:
         bad = [g for g in ctx.glyphs
                if not glyph_aspect_ok(g.height_mm, g.width_mm, g.glyph)]

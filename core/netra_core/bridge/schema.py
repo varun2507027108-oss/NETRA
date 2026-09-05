@@ -40,6 +40,8 @@ STAGE_NAMES = (
 # modules that exist today; grows one line per stage as s2-s5, s7 land
 _STAGE_MODULES = {
     "s1_frame_quality": "netra_core.stages.s1_frame_quality",
+    "s4_ocr": "netra_core.stages.s4_ocr",
+    "s5_field_extract": "netra_core.stages.s5_field_extract",
     "s6_metrology": "netra_core.stages.s6_metrology",
 }
 
