@@ -3,17 +3,27 @@
 Kotlin side:
     val py = Python.getInstance()
     val api = py.getModule("netra_core.bridge.chaquopy_api")
+    api.callAttr("configure", "{\"data_dir\": \"<app-internal files dir>\"}")
     val resultJson = api.callAttr("scan", requestJson).toString()
 
-Pure JSON-in / JSON-out (contract v1), so it is fully unit-testable
-off-device; only the *transport* differs from the desktop HTTP bridge.
+Pure JSON-in / JSON-out (contract v1.1) — only the transport differs from
+the desktop HTTP bridge. configure() pins the evidence directory to
+app-internal storage BEFORE the first scan (Android 10+ scoped storage).
 """
 from __future__ import annotations
 
 import json
 
+from .. import paths
+from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
+    scan_request_from_dict
+from ..persistence import queue_db
+from ..pipeline import attach_signature as pipeline_attach
 from ..pipeline import run_scan
-from .schema import error_result, ping_payload, scan_request_from_dict
+
+_SIG_ERR = {"schema_version": SCHEMA_VERSION, "scan_id": "",
+            "accepted": False, "sig_status": "pending", "verified": False,
+            "error": None}
 
 
 def scan(request_json: str) -> str:
@@ -29,3 +39,41 @@ def scan(request_json: str) -> str:
 
 def ping() -> str:
     return json.dumps(ping_payload())
+
+
+def configure(config_json: str) -> str:
+    try:
+        body = json.loads(config_json)
+        if not isinstance(body, dict):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return json.dumps({"error": {"code": "BAD_REQUEST",
+                                     "message": "invalid JSON"}})
+    dd = body.get("data_dir")
+    if not isinstance(dd, str) or not dd.strip():
+        return json.dumps({"error": {"code": "BAD_REQUEST",
+                                     "message": "'data_dir' required"}})
+    p = paths.set_data_dir(dd)
+    queue_db.reset()
+    return json.dumps({"data_dir": str(p),
+                       "dossier_dir": str(paths.dossier_dir()),
+                       "queue_db": str(paths.queue_db_path())})
+
+
+def attach_signature(body_json: str) -> str:
+    try:
+        body = json.loads(body_json)
+        if not isinstance(body, dict):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError, TypeError):
+        out = dict(_SIG_ERR)
+        out["error"] = {"code": "BAD_REQUEST", "message": "invalid JSON"}
+        return json.dumps(out)
+    return json.dumps(pipeline_attach(body.get("scan_id"),
+                                      body.get("signature"),
+                                      body.get("cert_pem")))
+
+
+def queue_status() -> str:
+    return json.dumps({"schema_version": SCHEMA_VERSION,
+                       **queue_db.get_db().status()})

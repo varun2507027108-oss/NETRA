@@ -1,6 +1,7 @@
 import base64
 import json
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -228,4 +229,20 @@ def test_demo_checks_carry_evidence():
     evidence = [c["evidence_bbox"] for c in r["checks"]
                 if c["rule"] == "6(1)(c)"]
     assert evidence and evidence[0] is not None and len(evidence[0]) == 4
+
+
+def test_demo_dossier_flag_contract(tmp_path):
+    from netra_core import paths
+    from netra_core.persistence import queue_db as qdb
+    paths.set_data_dir(tmp_path / "nd")
+    qdb.reset()
+    try:
+        r = run_demo_scan(dossier=True)
+        assert r["verdict"] == "VIOLATION" and r["summary"]["total"] == 11
+        assert r["dossier"]["sha256"] and len(r["dossier"]["sha256"]) == 64
+        assert Path(r["dossier"]["pdf_path"]).exists()
+        assert "s7_dossier" in r["timings_ms"]
+    finally:
+        qdb.reset()
+        paths.set_data_dir(None)
 

@@ -1,27 +1,32 @@
 """NETRA desktop dev bridge — FastAPI on 127.0.0.1:8734.
 
-Same JSON payloads as the Android MethodChannel: Flutter Windows dev
-points NetraBridge at HTTP, Android uses Chaquopy. Run:
+Same JSON payloads as the Android MethodChannel. Run:
 
     python -m netra_core.bridge.server
 
 Endpoints:
-    GET  /health        -> ping payload (contract section 5)
-    POST /scan          -> ScanRequest JSON -> ScanResult JSON
-    POST /scan/demo     -> optional {label?, options?} -> full demo result
-    POST /attach_signature -> 501 until s7_dossier lands
+    GET  /health            -> ping payload (contract section 6)
+    POST /scan              -> ScanRequest JSON -> ScanResult JSON
+    POST /scan/demo         -> {tokens?|label?, options?, dossier?} -> result
+    POST /attach_signature  -> {scan_id, signature, cert_pem} (contract 8)
+    POST /configure         -> {data_dir} — pin the evidence directory
+    GET  /queue/status      -> ledger counts (history/sync UI)
 
-Errors are carried IN-BAND (error object, verdict RETRY); the HTTP status
-is 200 for every handled pipeline outcome.
+Errors travel IN-BAND (error object, verdict RETRY); HTTP status is 200
+for every handled pipeline outcome.
 """
 from __future__ import annotations
 
 import uvicorn
 from fastapi import FastAPI
 
+from .. import paths
+from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
+    scan_request_from_dict
 from ..context import BBox, OCRToken
+from ..persistence import queue_db
+from ..pipeline import attach_signature as pipeline_attach
 from ..pipeline import run_demo_scan, run_scan
-from .schema import error_result, ping_payload, scan_request_from_dict
 
 HOST, PORT = "127.0.0.1", 8734
 
@@ -44,8 +49,6 @@ def scan(body: dict) -> dict:
 
 @app.post("/scan/demo")
 def scan_demo(body: dict | None = None) -> dict:
-    """optional {tokens?: [{text, bbox?, conf?, engine?, lang?}],
-    label?: {field: raw}, options?} -> full demo result (tokens win)."""
     body = body or {}
     tokens = body.get("tokens")
     if tokens is not None:
@@ -70,14 +73,34 @@ def scan_demo(body: dict | None = None) -> dict:
     options = body.get("options")
     if options is not None and not isinstance(options, dict):
         return error_result("BAD_REQUEST", "'options' must be an object")
-    return run_demo_scan(tokens=tokens, label=label, options=options)
+    dossier = body.get("dossier")
+    if dossier is not None and not isinstance(dossier, bool):
+        return error_result("BAD_REQUEST", "'dossier' must be a boolean")
+    return run_demo_scan(tokens=tokens, label=label, options=options,
+                         dossier=bool(dossier))
 
 
 @app.post("/attach_signature")
 def attach_signature(body: dict) -> dict:
-    return error_result("STAGE_FAILURE",
-                        "attach_signature is reserved until s7_dossier lands",
-                        stage="s7_dossier")
+    return pipeline_attach(body.get("scan_id"), body.get("signature"),
+                           body.get("cert_pem"))
+
+
+@app.post("/configure")
+def configure(body: dict) -> dict:
+    dd = body.get("data_dir")
+    if not isinstance(dd, str) or not dd.strip():
+        return {"error": {"code": "BAD_REQUEST",
+                          "message": "'data_dir' (string) is required"}}
+    p = paths.set_data_dir(dd)
+    queue_db.reset()
+    return {"data_dir": str(p), "dossier_dir": str(paths.dossier_dir()),
+            "queue_db": str(paths.queue_db_path())}
+
+
+@app.get("/queue/status")
+def queue_status() -> dict:
+    return {"schema_version": SCHEMA_VERSION, **queue_db.get_db().status()}
 
 
 if __name__ == "__main__":

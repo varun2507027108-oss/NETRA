@@ -45,6 +45,7 @@ _STAGE_MODULES = {
     "s4_ocr": "netra_core.stages.s4_ocr",
     "s5_field_extract": "netra_core.stages.s5_field_extract",
     "s6_metrology": "netra_core.stages.s6_metrology",
+    "s7_dossier": "netra_core.stages.s7_dossier",
 }
 
 SHAPE_HINTS = ("rectangular", "cylindrical", "pouch", "bottle", "blister", "other")
@@ -225,11 +226,13 @@ def _bbox_out(b) -> Optional[list]:
     return b.to_list() if b is not None else None
 
 
-def _meta_out(request: Optional[ScanRequest]) -> Optional[dict]:
-    if request is None:
-        return None
-    return {"gps": request.gps, "device": request.device,
-            "options": request.options}
+def _meta_out(request: Optional[ScanRequest], ctx: Optional[PipelineContext] = None) -> Optional[dict]:
+    if request is not None:
+        return {"gps": request.gps, "device": request.device,
+                "options": request.options}
+    if ctx is not None and ctx.meta:
+        return dict(ctx.meta)
+    return None
 
 
 def _empty_quality() -> dict:
@@ -312,7 +315,7 @@ def result_from_context(ctx: PipelineContext, *, request: Optional[ScanRequest] 
         "exemption": exemption,
         "summary": summary,
         "dossier": dossier,
-        "meta": _meta_out(request),
+        "meta": _meta_out(request, ctx),
         "error": error,
     }
 

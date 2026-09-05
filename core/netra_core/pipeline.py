@@ -1,32 +1,40 @@
 """NETRA pipeline orchestrator.
 
-run_scan: stages in statutory order. Stages not yet implemented are
-SKIPPED (ping capabilities advertise what is live — contract 1.0.2);
-gate stages (s1 quality, s3 calibration) short-circuit to RETRY with
-inspector prompts; every stage call is wrapped so a raised exception
-becomes an in-band INTERNAL error — the bridge never surfaces a
-traceback. Stage 3's corrected frame (uniform mm/px) feeds Stage 4, and
-after Stage 5 has measured font heights in that metric space, evidence
-bboxes are mapped back to submitted-image pixel space (contract section 5).
+run_scan: stages in statutory order. Unimplemented stages are SKIPPED
+(ping advertises them); gate stages (s1, s3) short-circuit to RETRY with
+inspector prompts; every stage call is wrapped — a raised exception
+becomes an in-band INTERNAL error. Stage 3's corrected frame feeds Stage
+4; after Stage 5, evidence bboxes are mapped back to submitted-image
+space. COMPLETED scans (PASS/VIOLATION) are recorded in the SQLite
+evidence ledger (ledger failure never destroys a completed audit).
 
-run_demo_scan: real s4 (dev injection) -> s5 -> s6 over simulated ML Kit
-tokens carrying the five planted SIH26034 traps.
+attach_signature: the contract section 8 handshake — verifies the
+platform's ECDSA P-256 signature over the dossier hash and flips the
+ledger row to signed.
+
+run_demo_scan: real s4 (dev injection) -> s5 -> s6, plus optionally s7 +
+ledger recording when dossier=True (mirrors run_scan behaviour; the
+default demo writes NOTHING to disk).
 """
 from __future__ import annotations
 
 import base64
 import binascii
 import hashlib
+import sys
 from dataclasses import replace
 from typing import Optional
 
 import cv2
 import numpy as np
 
-from .bridge.schema import ScanRequest, error_result, result_from_context
-from .context import BBox, OCRToken, PipelineContext
+from .bridge.schema import (SCHEMA_VERSION, ScanRequest, error_result,
+                            result_from_context)
+from .context import BBox, OCRToken, PipelineContext, Verdict
+from .dossier import crypto
+from .persistence import queue_db
 from .stages import (s1_frame_quality, s3_calibration, s4_ocr,
-                     s5_field_extract, s6_metrology)
+                     s5_field_extract, s6_metrology, s7_dossier)
 
 # stage name -> runnable | None. Each None disappears as its stage lands.
 _STAGES_IN_ORDER = (
@@ -36,7 +44,7 @@ _STAGES_IN_ORDER = (
     ("s4_ocr", s4_ocr),
     ("s5_field_extract", s5_field_extract),
     ("s6_metrology", s6_metrology),
-    ("s7_dossier", None),
+    ("s7_dossier", s7_dossier),
 )
 
 
@@ -70,6 +78,23 @@ def _remap_evidence(ctx: PipelineContext, calib) -> None:
             ctx.fields[key] = replace(fv, bbox=calib.bbox_to_source(fv.bbox))
 
 
+def _record_result(ctx: PipelineContext, result: dict) -> None:
+    """Ledger write for COMPLETED scans. A ledger failure must never
+    destroy a completed audit result — it is swallowed (the queue is
+    WAL-mode SQLite; failures here are rare and non-statutory)."""
+    if result["verdict"] not in ("PASS", "VIOLATION"):
+        return
+    try:
+        db = queue_db.get_db()
+        db.record_scan(ctx.image_id, result["verdict"],
+                       image_sha256=ctx.image_sha256 or None,
+                       dossier_sha256=ctx.dossier_sha256,
+                       dossier_path=ctx.dossier_path or None)
+        db.update_result(ctx.image_id, result)
+    except Exception:
+        pass                    # noqa: S110 — see docstring
+
+
 def run_scan(request: ScanRequest) -> dict:
     """The one entrypoint behind both transports. Always contract JSON."""
     ctx = PipelineContext(
@@ -92,9 +117,10 @@ def run_scan(request: ScanRequest) -> dict:
                             request=request)
 
     calib = None
+    source_img = img                  # evidence crops + hash chain source
     for name, module in _STAGES_IN_ORDER:
         if module is None:
-            continue                      # not yet implemented: ping says so
+            continue                  # not yet implemented: ping says so
         try:
             if name == "s1_frame_quality":
                 report = module.run(ctx, img)
@@ -113,6 +139,9 @@ def run_scan(request: ScanRequest) -> dict:
                 _remap_evidence(ctx, calib)
             elif name == "s6_metrology":
                 module.run(ctx, options=request.options)
+            elif name == "s7_dossier":
+                module.run(ctx, source_frame=source_img,
+                           options=request.options)
             else:
                 module.run(ctx)
         except Exception as e:              # contract section 9 — in-band
@@ -121,7 +150,50 @@ def run_scan(request: ScanRequest) -> dict:
                                 stage=name, scan_id=ctx.image_id,
                                 request=request)
 
-    return result_from_context(ctx, request=request)
+    result = result_from_context(ctx, request=request)
+    _record_result(ctx, result)
+    return result
+
+
+# ------------------------------------------------------- signing handshake
+def _sig_response(scan_id, accepted, sig_status, verified, error=None):
+    return {"schema_version": SCHEMA_VERSION, "scan_id": scan_id or "",
+            "accepted": accepted, "sig_status": sig_status,
+            "verified": verified, "error": error}
+
+
+def attach_signature(scan_id, signature, cert_pem) -> dict:
+    """Contract section 8: the platform returns its ECDSA P-256 signature
+    over crypto.sign_payload(scan_id, dossier_sha256). Verifies with the
+    certificate's public key when `cryptography` is available; stores and
+    flips the ledger row to signed. One implementation, two transports."""
+    if (not isinstance(scan_id, str) or not scan_id
+            or not isinstance(signature, str) or not signature
+            or not isinstance(cert_pem, str) or not cert_pem):
+        return _sig_response("", False, "pending", False,
+                             {"code": "BAD_REQUEST",
+                              "message": "scan_id, signature, cert_pem "
+                                         "are required strings"})
+    row = queue_db.get_db().get_scan(scan_id)
+    if row is None:
+        return _sig_response(scan_id, False, "pending", False,
+                             {"code": "NOT_FOUND",
+                              "message": f"no completed scan {scan_id}"})
+    if row["sig_status"] == "signed":
+        return _sig_response(scan_id, False, "signed", bool(row["sig_verified"]),
+                             {"code": "ALREADY_SIGNED",
+                              "message": "scan already carries a signature"})
+    if not row["dossier_sha256"]:
+        return _sig_response(scan_id, False, "pending", False,
+                             {"code": "NO_DOSSIER",
+                              "message": "scan has no dossier to sign"})
+    verified, err = crypto.verify_signature(
+        scan_id, row["dossier_sha256"], signature, cert_pem)
+    if err is not None:
+        return _sig_response(scan_id, False, "pending", False,
+                             {"code": "VERIFY_FAILED", "message": err})
+    queue_db.get_db().attach_signature(scan_id, signature, cert_pem, verified)
+    return _sig_response(scan_id, True, "signed", verified, None)
 
 
 # ------------------------------------------------------------------ demo path
@@ -131,8 +203,6 @@ def _tok(x, y, w, h, text, conf=0.97, engine="mlkit"):
 
 
 # Simulated ML Kit line tokens for the demo pouch label (800x800 frame).
-# Layout exercises every aggregation level: split anchor/value pairs (L2),
-# inline tokens (L1), and a two-line address paragraph (L4).
 _DEMO_TOKENS = (
     _tok(200, 60, 420, 60, "Instant Masala Noodles", 0.98),
     _tok(120, 340, 150, 30, "Net Quantity:", 0.96),
@@ -163,21 +233,56 @@ def _tokens_from_label(label: dict) -> list:
     return out
 
 
-def run_demo_scan(tokens=None, label=None, options=None) -> dict:
+def _demo_frame(tokens) -> np.ndarray:
+    """Render the demo tokens onto a synthetic label image (evidence crops
+    for the demo dossier). ASCII-safe: the rupee sign draws as 'Rs'."""
+    frame = np.full((800, 800, 3), 252, np.uint8)
+    for t in tokens:
+        x, y, w, h = t.bbox.to_list()
+        text = t.text.replace("₹", "Rs")
+        scale = max(0.4, h / 34.0)
+        cv2.putText(frame, text, (x + 2, y + h - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, scale, (35, 35, 35),
+                    max(1, h // 20), cv2.LINE_AA)
+    return frame
+
+
+def run_demo_scan(tokens=None, label=None, options=None,
+                  dossier: bool = False) -> dict:
     """Full statutory engine over injected OCR tokens.
 
-    Default tokens carry the five planted SIH26034 traps; pass your own
-    OCRToken list (or a legacy {field: raw} dict) to explore verdicts.
+    Default (dossier=False): pure computation, writes NOTHING to disk.
+    dossier=True: mirrors run_scan — s7 generates the PDF over a synthetic
+    frame, the scan lands in the evidence ledger, and the result carries
+    the dossier object ready for the signing handshake.
     """
+    default_demo = tokens is None and label is None
     if tokens is None:
         tokens = _tokens_from_label(label) if label else list(_DEMO_TOKENS)
 
     ctx = PipelineContext(shape_hint="pouch")
-    ctx.mm_per_px = 0.04          # demo metric scale (Stage 3 supplies the real one)
-    ctx.pda_cm2 = 80.0            # Table-I band 2 -> 1.5 mm minimum
-    ctx.pda_method = "demo"
+    if default_demo:
+        # the five planted SIH26034 traps (font height + PDA included)
+        ctx.mm_per_px = 0.04
+        ctx.pda_cm2 = 80.0            # Table-I band 2 -> 1.5 mm minimum
+        ctx.pda_method = "demo"
 
     s4_ocr.run(ctx, tokens=tokens)
     s5_field_extract.run(ctx)
     s6_metrology.run(ctx, options=options)
-    return result_from_context(ctx)
+
+    if dossier:
+        frame = _demo_frame(tokens)
+        ok, buf = cv2.imencode(".jpg", frame,
+                               [cv2.IMWRITE_JPEG_QUALITY, 92])
+        ctx.image_sha256 = hashlib.sha256(buf.tobytes()).hexdigest()
+        ctx.meta = {"device": {"model": "NETRA desktop demo",
+                               "os": sys.platform},
+                    "gps": {"lat": 19.0760, "lon": 72.8777,
+                            "source": "demo"}}
+        s7_dossier.run(ctx, source_frame=frame, options=options)
+
+    result = result_from_context(ctx)
+    if dossier:
+        _record_result(ctx, result)
+    return result

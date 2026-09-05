@@ -24,9 +24,11 @@ Only `NetraBridge` (Dart) knows a transport exists.
 | Method | Direction | Request | Response |
 |---|---|---|---|
 | `ping` | Dart → core | `{}` | ping payload (§6) |
+| `configure` | Dart → core | `{data_dir: string}` | `{data_dir, dossier_dir, queue_db}` — call ONCE at startup (Android: app-internal storage) |
 | `scan` | Dart → core | ScanRequest (§3) | ScanResult (§4) |
-| `attach_signature` | Dart → core | `{scan_id, signature, cert_pem}` | **reserved until s7** (501) |
-| `get_scan`, `queue_status` | — | **reserved v1.1** (history & sync UI) | — |
+| `attach_signature` | Dart → core | `{scan_id, signature, cert_pem}` (§8) | `{schema_version, scan_id, accepted, sig_status, verified, error?}` |
+| `queue_status` | Dart → core | `{}` | `{schema_version, total, pending_sync, signed, dossiers}` |
+| `get_scan` | — | **reserved v1.2** (history detail) | — |
 
 ## 3. ScanRequest
 
@@ -127,11 +129,27 @@ use it to gray out UI for unbuilt stages.
 - error code: `BAD_REQUEST | DECODE_ERROR | UNSUPPORTED_VERSION | STAGE_FAILURE | INTERNAL`
 - dossier.sig_status: `pending | signed | unsupported`
 
-## 8. Signing flow (lands with s7)
-`scan` → `dossier.sha256` + `sig_status: "pending"` → Kotlin signs the
-sha256 with Android KeyStore **ECDSA P-256** → Dart calls
-`attach_signature(scan_id, signature, cert_pem)` → core flips
-`signed: true`. The core never holds private keys.
+## 8. Signing flow (live)
+
+1. `scan` completes → result.dossier = `{sha256, pdf_path, signed: false,
+   signature: null, cert_pem: null, sig_status: "pending"}`; the scan is
+   recorded in the on-device evidence ledger (SQLite WAL).
+2. Kotlin reads `dossier.sha256` and signs the EXACT UTF-8 payload
+   `"NETRA-DOSSIER-v1|<scan_id>|<sha256>"` with Android KeyStore
+   **ECDSA P-256, SHA-256 digest** (`SHA256withECDSA`).
+3. Dart calls `attach_signature({scan_id, signature: <base64 DER>,
+   cert_pem: <X.509 PEM>})`.
+4. Core verifies (public key from cert, P-256 enforced) when the
+   `cryptography` package is present; otherwise stores with
+   `verified: false`. Responses: `accepted: true` + `sig_status:
+   "signed"`, or errors `BAD_REQUEST | NOT_FOUND | NO_DOSSIER |
+   ALREADY_SIGNED | VERIFY_FAILED`.
+5. The ledger row (and its stored result JSON) flip to signed — the
+   system of record for s8 sync and institutional export.
+
+The core never holds private keys. PASS scans are recorded too (compliance
+records, no dossier unless `options.dossier_on_pass`); RETRY never lands
+in the ledger.
 
 ## 9. Error semantics
 Never throw across the bridge. Every failure is a full ScanResult with
@@ -181,6 +199,10 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.1.0** — s7 live: PDF dossiers (Parts A–F, BSA §63(4) certificate),
+  evidence ledger (SQLite WAL), `attach_signature` + `configure` +
+  `queue_status` defined and implemented. Completed scans (PASS/VIOLATION)
+  are recorded server-side of the bridge; RETRY is never recorded.
 - **1.0.2** — s3 live (aruco-homography + solvePnP scale, cylindrical unwarp,
   Rule 7(4) PDA). run_scan now SKIPS unimplemented stages (ping advertises
   them) instead of returning STAGE_FAILURE envelopes; INTERNAL envelope
