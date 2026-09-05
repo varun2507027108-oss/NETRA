@@ -10,7 +10,9 @@ requires-python = ">=3.9"
 dependencies = []            # rules layer is stdlib-only by design
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4", "ruff>=0.4", "opencv-python", "numpy"]
+bridge = ["fastapi>=0.110", "uvicorn>=0.29"]
+dev = ["pytest>=7.4", "ruff>=0.4", "opencv-python", "numpy",
+       "httpx>=0.27", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [tool.setuptools.packages.find]
 include = ["netra_core*"]
