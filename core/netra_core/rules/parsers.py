@@ -117,26 +117,50 @@ def parse_usp(text: str) -> Optional[Quantity]:
 _MONTHS = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
 
-_DATE_RE = re.compile(
-    r"([0-9]{1,2})\s*[/\-.]\s*([0-9]{4})"                 # MM/YYYY
-    r"|([a-z]{3,9})\s*[\-,. ]{0,3}\s*([0-9]{4})",          # Month YYYY,
-    re.IGNORECASE,
-)
+_YEAR_MIN, _YEAR_MAX = 1970, 2100
+
+_DMY_RE = re.compile(       # 15/08/2025 or 03/13/2026
+    r"(?<![0-9])([0-9]{1,2})\s*[/\-.]\s*([0-9]{1,2})\s*[/\-.]\s*([0-9]{4})(?![0-9])")
+_MY_RE = re.compile(        # 03/2026
+    r"(?<![0-9])([0-9]{1,2})\s*[/\-.]\s*([0-9]{4})(?![0-9])")
+_MONY_RE = re.compile(      # AUG 2026 / March 2025
+    r"([a-z]{3,9})\s*[\-,. ]{0,3}\s*([0-9]{4})(?![0-9])", re.IGNORECASE)
 
 
 def parse_date(text: str) -> Optional[date]:
-    """Rule 6(1)(d): MM/YYYY or Month YYYY -> date (day pinned to 1)."""
-    m = _DATE_RE.search(normalize(text))
-    if not m:
-        return None
-    if m.group(1) is not None:
-        month, year = int(m.group(1)), int(m.group(2))
+    """Rule 6(1)(d): month & year. Accepted forms, in try order:
+
+    1. DD/MM/YYYY — a field > 12 must be the day (this also disambiguates
+       MM/DD/YYYY); when both fit, the Indian DD/MM reading is the default.
+       Day is pinned to 1: the statute demands month precision only.
+    2. MM/YYYY.
+    3. Month YYYY ('AUG 2026', 'March 2025', 'Sept 2026').
+
+    Rejected: reversed YYYY/MM, missing year, implausible years
+    (< 1970 or > 2100), month words that don't decode.
+    """
+    t = normalize(text)
+    m = _DMY_RE.search(t)
+    if m:
+        a, b, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if a > 12 and b <= 12:
+            month = b                      # first field must be the day
+        elif b > 12 and a <= 12:
+            month = a                      # second field must be the day
+        else:
+            month = b                      # Indian DD/MM default
     else:
-        month = _MONTHS.get(m.group(3).lower()[:3])
-        year = int(m.group(4))
-    if month is None or not 1 <= month <= 12:
+        m = _MY_RE.search(t)
+        if m:
+            month, year = int(m.group(1)), int(m.group(2))
+        else:
+            m = _MONY_RE.search(t)
+            if m is None:
+                return None
+            month = _MONTHS.get(m.group(1).lower()[:3])
+            year = int(m.group(2))
+            if month is None:
+                return None
+    if not (_YEAR_MIN <= year <= _YEAR_MAX and 1 <= month <= 12):
         return None
-    try:
-        return date(year, month, 1)
-    except ValueError:
-        return None
+    return date(year, month, 1)

@@ -79,6 +79,15 @@ class FieldValue:
 
 
 @dataclass(frozen=True)
+class GlyphBox:
+    """One measured character (Stage 5 output; Stage 6 consumes for Rule 7(3))."""
+    glyph: str
+    height_mm: float
+    width_mm: float
+    field: str = ""
+
+
+@dataclass(frozen=True)
 class Check:
     """One statutory finding. `rule` keys into netra_core.rules.citations."""
     rule: str
@@ -114,6 +123,7 @@ class PipelineContext:
     tokens: list = field(default_factory=list)        # list[OCRToken]
     fields: dict = field(default_factory=dict)        # str -> FieldValue
     font_heights: dict = field(default_factory=dict)  # field key -> mm
+    glyphs: list = field(default_factory=list)    # list[GlyphBox] — Rule 7(3) aspect checks
 
     # outputs
     checks: list = field(default_factory=list)        # list[Check]

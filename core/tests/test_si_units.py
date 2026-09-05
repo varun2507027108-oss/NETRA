@@ -23,7 +23,7 @@ def test_clean_text_has_no_hits():
 def test_hit_carries_suggestion_and_span():
     hits = find_prohibited_units("Net Qty 500 gms")
     assert hits[0].token == "gms" and hits[0].suggestion == "g"
-    assert "500 gms"[hits[0].start:hits[0].end] == "gms"
+    assert "Net Qty 500 gms"[hits[0].start:hits[0].end] == "gms"
 
 
 def test_is_permitted():
