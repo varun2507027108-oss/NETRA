@@ -16,6 +16,17 @@ from netra_core.stages import s4_ocr           # noqa: E402
 from netra_core.vision import aruco            # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def data_dir(tmp_path):
+    from netra_core import paths
+    from netra_core.persistence import queue_db
+    paths.set_data_dir(tmp_path / "netra")
+    queue_db.reset()
+    yield
+    queue_db.reset()
+    paths.set_data_dir(None)
+
+
 def _canvas(texts, w=1000, h=1400):
     frame = np.full((h, w, 3), 250, np.uint8)
     y = 150

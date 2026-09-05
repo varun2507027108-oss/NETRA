@@ -111,6 +111,8 @@ class PipelineContext:
     captured_utc: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     image_sha256: str = ""
     shape_hint: str = ""                    # rectangular|cylindrical|pouch|bottle|blister
+    rois: list = field(default_factory=list)   # s2: [{roi, bbox, conf}]
+    shape_detected: str = ""                   # s2 silhouette suggestion
     meta: dict = field(default_factory=dict)   # gps / device / options echo (bridge)
     pda_method: str = ""                       # "solvePnP-aruco" | formula tag | "demo"
     dossier_path: str = ""                     # set by s7

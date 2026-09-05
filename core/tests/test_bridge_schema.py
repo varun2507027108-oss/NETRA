@@ -146,15 +146,16 @@ def test_run_scan_bad_base64():
     assert r["error"]["code"] == "DECODE_ERROR"
 
 
-def test_run_scan_without_fiducial_is_retry_and_skips_unbuilt():
+def test_run_scan_retries_without_calibration():
     rng = np.random.default_rng(7)
     b64 = _image_b64(rng.integers(0, 200, (480, 640, 3), dtype=np.uint8))
     req, _ = scan_request_from_dict({"image_b64": b64})
     r = run_scan(req)
     assert r["quality"]["ok"] is True                     # s1 passed
-    assert "s2_geometry_detect" not in r["timings_ms"]    # unbuilt = skipped
-    assert "s3_calibration" in r["timings_ms"]            # s3 ran
+    assert "s2_geometry_detect" in r["timings_ms"]        # deterministic s2 ran
+    assert "s3_calibration" in r["timings_ms"]
     assert r["verdict"] == "RETRY" and r["error"] is None
+    assert any("fiducial" in p.lower() for p in r["quality"]["prompts"])
 
 
 def test_run_scan_internal_error_envelope(monkeypatch):

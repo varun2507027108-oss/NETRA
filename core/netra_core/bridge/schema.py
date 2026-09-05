@@ -41,6 +41,7 @@ STAGE_NAMES = (
 # modules that exist today; grows one line per stage as s2-s5, s7 land
 _STAGE_MODULES = {
     "s1_frame_quality": "netra_core.stages.s1_frame_quality",
+    "s2_geometry_detect": "netra_core.stages.s2_geometry_detect",
     "s3_calibration": "netra_core.stages.s3_calibration",
     "s4_ocr": "netra_core.stages.s4_ocr",
     "s5_field_extract": "netra_core.stages.s5_field_extract",
@@ -267,15 +268,18 @@ def result_from_context(ctx: PipelineContext, *, request: Optional[ScanRequest] 
         "glare_bbox": q.get("glare_bbox"),
     }
 
-    if ctx.mm_per_px is None and ctx.pda_cm2 is None and not ctx.shape_hint:
+    if (ctx.mm_per_px is None and ctx.pda_cm2 is None and not ctx.shape_hint
+            and not ctx.shape_detected and not ctx.rois):
         geometry = None
     else:
         geometry = {
-            "shape": ctx.shape_hint or None,
+            "shape": ctx.shape_hint or ctx.shape_detected or None,
+            "shape_detected": ctx.shape_detected or None,
             "mm_per_px": ctx.mm_per_px,
             "pda_cm2": ctx.pda_cm2,
             "pda_method": ctx.pda_method or None,
-            "rois": [],                      # filled by s2 when it lands
+            "rois": [{"roi": r["roi"], "bbox": r["bbox"].to_list(),
+                      "conf": r["conf"]} for r in ctx.rois],
         }
 
     tokens = [{"text": t.text, "bbox": _bbox_out(t.bbox),

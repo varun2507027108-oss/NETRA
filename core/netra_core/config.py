@@ -34,3 +34,14 @@ CYL_MIN_RADIUS_PX = 40.0         # smaller "cylinder" = estimation noise
 CYL_MAX_RADIUS_MM = 250.0        # sanity bound on recovered radius
 PDA_SANITY_CM2 = (1.0, 25000.0)  # PDA outside this range -> not computed
 MAX_RECT_SCALE = 8.0             # rectified extent cap (oblique-marker guard)
+
+# ---- Stage 2: package geometry (deterministic engine) --------------------
+PKG_MIN_AREA_FRAC = 0.15         # silhouette smaller -> not a package
+PKG_MAX_AREA_FRAC = 0.90         # silhouette covering ~the frame -> background
+PKG_BORDER_TOUCH_MAX = 2         # contour bbox sides allowed to touch frame edge
+PKG_CROP_MARGIN_FRAC = 0.10      # margin around package(+fiducial) union
+PKG_CROP_MAX_AREA_FRAC = 0.85    # crop larger than this -> not worth cropping
+SHAPE_SAGITTA_FRAC = 0.04        # top-edge sagitta/width -> cylindrical
+BARCODE_MIN_ASPECT = 1.4         # w/h of a 1D barcode region
+BARCODE_MIN_EDGE_DENSITY = 0.28  # in-box vertical-edge density
+BARCODE_MIN_COL_CV = 1.0         # column-profile variation (stripe periodicity)

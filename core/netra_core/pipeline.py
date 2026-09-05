@@ -3,10 +3,12 @@
 run_scan: stages in statutory order. Unimplemented stages are SKIPPED
 (ping advertises them); gate stages (s1, s3) short-circuit to RETRY with
 inspector prompts; every stage call is wrapped — a raised exception
-becomes an in-band INTERNAL error. Stage 3's corrected frame feeds Stage
-4; after Stage 5, evidence bboxes are mapped back to submitted-image
-space. COMPLETED scans (PASS/VIOLATION) are recorded in the SQLite
-evidence ledger (ledger failure never destroys a completed audit).
+becomes an in-band INTERNAL error. Stage 2 crops the frame to the
+package (+ adjacent fiducial); Stage 3's corrected frame feeds Stage 4;
+after Stage 5, evidence bboxes are remapped (s3) and offset (s2 crop)
+back to submitted-image pixel space (contract section 5). COMPLETED
+scans (PASS/VIOLATION) are recorded in the SQLite evidence ledger
+(ledger failure never destroys a completed audit).
 
 attach_signature: the contract section 8 handshake — verifies the
 platform's ECDSA P-256 signature over the dossier hash and flips the
@@ -33,13 +35,13 @@ from .bridge.schema import (SCHEMA_VERSION, ScanRequest, error_result,
 from .context import BBox, OCRToken, PipelineContext, Verdict
 from .dossier import crypto
 from .persistence import queue_db
-from .stages import (s1_frame_quality, s3_calibration, s4_ocr,
-                     s5_field_extract, s6_metrology, s7_dossier)
+from .stages import (s1_frame_quality, s2_geometry_detect, s3_calibration,
+                     s4_ocr, s5_field_extract, s6_metrology, s7_dossier)
 
 # stage name -> runnable | None. Each None disappears as its stage lands.
 _STAGES_IN_ORDER = (
     ("s1_frame_quality", s1_frame_quality),
-    ("s2_geometry_detect", None),
+    ("s2_geometry_detect", s2_geometry_detect),
     ("s3_calibration", s3_calibration),
     ("s4_ocr", s4_ocr),
     ("s5_field_extract", s5_field_extract),
@@ -67,7 +69,7 @@ def decode_image(image_b64: str) -> np.ndarray:
 
 def _remap_evidence(ctx: PipelineContext, calib) -> None:
     """After Stage 5 measured font heights in the corrected frame, map
-    token and field bboxes back to submitted-image pixel space."""
+    token and field bboxes back to crop-frame pixel space."""
     if calib is None or calib.map_x is None:
         return
     ctx.tokens = [replace(t, bbox=calib.bbox_to_source(t.bbox))
@@ -76,6 +78,23 @@ def _remap_evidence(ctx: PipelineContext, calib) -> None:
     for key, fv in list(ctx.fields.items()):
         if fv.bbox is not None:
             ctx.fields[key] = replace(fv, bbox=calib.bbox_to_source(fv.bbox))
+
+
+def _offset_evidence(ctx: PipelineContext, origin: tuple) -> None:
+    """Stage 2 cropped the frame; shift evidence bboxes back to
+    submitted-image pixel space (contract section 5). Composes after
+    _remap_evidence (s3 maps into crop space; this adds the crop origin)."""
+    if origin == (0, 0):
+        return
+    dx, dy = origin
+    ctx.tokens = [replace(t, bbox=replace(t.bbox, x=t.bbox.x + dx,
+                                          y=t.bbox.y + dy))
+                  if t.bbox is not None else t
+                  for t in ctx.tokens]
+    for key, fv in list(ctx.fields.items()):
+        if fv.bbox is not None:
+            ctx.fields[key] = replace(
+                fv, bbox=replace(fv.bbox, x=fv.bbox.x + dx, y=fv.bbox.y + dy))
 
 
 def _record_result(ctx: PipelineContext, result: dict) -> None:
@@ -117,6 +136,7 @@ def run_scan(request: ScanRequest) -> dict:
                             request=request)
 
     calib = None
+    crop_origin = (0, 0)
     source_img = img                  # evidence crops + hash chain source
     for name, module in _STAGES_IN_ORDER:
         if module is None:
@@ -126,6 +146,11 @@ def run_scan(request: ScanRequest) -> dict:
                 report = module.run(ctx, img)
                 if not report.ok:
                     return result_from_context(ctx, request=request)
+            elif name == "s2_geometry_detect":
+                geo = module.run(ctx, img, options=request.options)
+                if geo.crop is not None:
+                    crop_origin = geo.origin
+                    img = geo.crop          # package (+ card) feeds s3/s4
             elif name == "s3_calibration":
                 calib = module.run(ctx, img, options=request.options)
                 if not calib.ok:
@@ -137,6 +162,7 @@ def run_scan(request: ScanRequest) -> dict:
             elif name == "s5_field_extract":
                 module.run(ctx)
                 _remap_evidence(ctx, calib)
+                _offset_evidence(ctx, crop_origin)
             elif name == "s6_metrology":
                 module.run(ctx, options=request.options)
             elif name == "s7_dossier":

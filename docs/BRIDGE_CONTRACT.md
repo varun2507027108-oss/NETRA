@@ -1,4 +1,4 @@
-# NETRA Bridge Contract — v1.0.0 (FROZEN)
+# NETRA Bridge Contract — v1.2.2
 
 Single source of truth for the JSON seam between `netra_core` (Python) and
 the Flutter client. Machine twin: `core/netra_core/bridge/schema.py`.
@@ -73,7 +73,7 @@ Invalid values for known keys → `BAD_REQUEST`; unknown keys ignored.
 | `total_ms` | number | sum of executed stages |
 | `timings_ms` | object | **only stages that executed** (sole exception to always-present) |
 | `quality` | object | §4.1 |
-| `geometry` | object \| null | null until s2/s3; PDA + scale |
+| `geometry` | object \| null | null until s2/s3; scale, PDA, shape, ROIs (§4.5) |
 | `ocr` | object | `{engines_used: string[], tokens: Token[]}` (§4.2) |
 | `fields` | object | keyed by FIELD_KEYS (§4.3) |
 | `checks` | array | the statutory report — render as-is (§4.4) |
@@ -112,6 +112,15 @@ never as doubles** (display formatting only).
 evidence_bbox: bbox|null}` with `status ∈ {PASS, FAIL, NA}`. `rule` keys the
 citation text; `message` is inspector-ready prose. Order is statutory.
 
+### 4.5 geometry
+`shape` = effective shape (inspector hint, else detected); `shape_detected`
+= Stage 2 silhouette suggestion only (`cylindrical|pouch|bottle`, null for
+boxes — never authoritative for Rule 7(4)); `rois`:
+`[{roi, bbox, conf}]` with roi ∈ `PACKAGE | PDP | BOP | PRICE | BARCODE` —
+PACKAGE & BARCODE live (deterministic s2); PDP/BOP/PRICE reserved for the
+model round. Bboxes are in submitted-image pixel space (s2 crop offsets
+are applied before serialization).
+
 ## 5. bbox
 `[x, y, w, h]` — four ints, pixel space of the **submitted image** (not the
 preview). Scale overlays by displayed-image size only.
@@ -125,7 +134,7 @@ use it to gray out UI for unbuilt stages (and label the active OCR tier in repor
 - verdict: `PASS | VIOLATION | RETRY`
 - check status: `PASS | FAIL | NA`
 - shape_hint / geometry.shape: `rectangular | cylindrical | pouch | bottle | blister | other`
-- roi (future, s2): `PDP | BOP | PRICE | BARCODE`
+- roi: `PACKAGE | PDP | BOP | PRICE | BARCODE` (PACKAGE & BARCODE live; PDP/BOP/PRICE reserved — model round)
 - ocr engine: `mlkit | tesseract | indic | bhashini`
 - error code: `BAD_REQUEST | DECODE_ERROR | UNSUPPORTED_VERSION | STAGE_FAILURE | INTERNAL`
 - dossier.sig_status: `pending | signed | unsupported`
@@ -200,6 +209,10 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.2.2** — additive: s2 (deterministic) live — geometry gains
+  `shape_detected` and populated `rois` (PACKAGE, BARCODE); roi enum
+  extends with PACKAGE. Evidence bboxes remain in submitted-image space
+  (s2 crop offsets applied post-s5).
 - **1.2.1** — additive: OCR engine enum gains `tesseract` (desktop dev
   tier); ping capabilities gains `ocr_engines`. s4 routing is
   first-engine-with-tokens per tier order.
