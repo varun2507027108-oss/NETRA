@@ -35,7 +35,7 @@ FRAME_W, FRAME_H = 1300, 1600
 PKG_X, PKG_Y, PKG_W, PKG_H = 200, 300, 800, 1000
 MARKER_PX = 200                       # 40 mm at the 0.2 mm/px scene scale
 MARKER_AT = (1030, 320)               # adjacent right: inside s2 crop reach
-BG, FG = 70, 235
+BG, FG = 70, 220
 DIMS_CM = {"height": 20.0, "width": 16.0}   # 1000px*0.2, 800px*0.2
 
 FONT = cv2.FONT_HERSHEY_SIMPLEX
@@ -78,7 +78,7 @@ def _base_frame(rng) -> np.ndarray:
     frame = np.clip(rng.normal(BG, 6, (FRAME_H, FRAME_W, 3)),
                     0, 255).astype(np.uint8)
     patch = np.clip(rng.normal(FG, 6, (PKG_H, PKG_W, 3)),
-                    0, 255).astype(np.uint8)
+                    0, 238).astype(np.uint8)
     frame[PKG_Y:PKG_Y + PKG_H, PKG_X:PKG_X + PKG_W] = patch
     return frame                          # per-pixel noise also keeps the
                                            # s1 Laplacian gate comfortably

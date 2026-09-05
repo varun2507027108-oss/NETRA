@@ -59,7 +59,8 @@ def test_slash_survives_for_usp():
 
 
 def test_pipeline_end_to_end_with_fiducial():
-    frame = np.full((1400, 1000, 3), 250, np.uint8)
+    rng = np.random.default_rng(0)
+    frame = np.clip(rng.normal(215, 5, (1400, 1000, 3)), 0, 238).astype(np.uint8)
     marker = aruco.generate_image(0, 200)
     frame[60:260, 60:260] = cv2.cvtColor(marker, cv2.COLOR_GRAY2BGR)
     for y, text in [
