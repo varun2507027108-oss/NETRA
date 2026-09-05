@@ -15,8 +15,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: tesseract (desktop OCR tier — unskips the 4 e2e tests)
-        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+      - name: system dependencies (tesseract + ocr data + opencv runtime)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng libgl1 libglib2.0-0
       - name: install core + backend
         run: |
           python -m pip install --upgrade pip
@@ -24,4 +24,5 @@ jobs:
           python -m pip install -e backend
       - name: pytest
         working-directory: core
-        run: python -m pytest -q
+        run: python -m pytest -v --tb=short
+
