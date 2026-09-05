@@ -98,6 +98,41 @@ def parse_money(text: str) -> Optional[Decimal]:
     return _num(m.group(1)) if m else None
 
 
+_MRP_CONTEXT_RE = re.compile(
+    r"\b(?:m\.?\s*r\.?\s*p\.?|max(?:imum)?\.?\s*retail\s*price)\b",
+    re.IGNORECASE)
+_BARE_AMOUNT_RE = re.compile(r"(?<![0-9.])[0-9]{1,6}(?:\.[0-9]{1,2})?(?![0-9])")
+
+
+def parse_money_lenient(text: str) -> Optional[Decimal]:
+    """MRP-context money parse.
+
+    Currency-marked amounts always win (parse_money); otherwise, when an
+    MRP/price keyword establishes pricing context, accept the first bare
+    amount after it — preferring a two-decimal form when several are
+    present (prices are printed Rs xx.xx; this guards against the rupee
+    glyph decoding as a stray digit, e.g. 'MRP 9 50.00' -> 50.00). The
+    keyword wording itself carries the rupee designation; the statutory
+    PHRASE check ('incl. of all taxes') stays strict in
+    declarations.check_mrp — the phrase is the legal trap, not the
+    currency typography.
+    """
+    marked = parse_money(text)
+    if marked is not None:
+        return marked
+    t = normalize(text)
+    kw = _MRP_CONTEXT_RE.search(t)
+    if kw is None:
+        return None
+    matches = list(_BARE_AMOUNT_RE.finditer(t[kw.end():]))
+    if not matches:
+        return None
+    best = next((m for m in matches
+                 if re.fullmatch(r"[0-9]+\.[0-9]{2}", m.group(0))),
+                matches[0])
+    return _num(best.group(0))
+
+
 # ------------------------------------------------------------------------ USP
 _USP_RE = re.compile(
     r"([0-9]+(?:[.,][0-9]+)*)\s*(?:/|per\s*)\s*([a-z]+[0-9]?)\b",

@@ -10,10 +10,12 @@ requires-python = ">=3.9"
 dependencies = ["reportlab>=4.0", "pillow>=10.0"]   # dossier rendering (rules layer stays stdlib-only)
 
 [project.optional-dependencies]
+ocr = ["pytesseract>=0.3.10"]
 bridge = ["fastapi>=0.110", "uvicorn>=0.29"]
 crypto = ["cryptography>=42"]
 dev = ["pytest>=7.4", "ruff>=0.4", "opencv-python", "numpy",
-       "httpx>=0.27", "fastapi>=0.110", "uvicorn>=0.29", "cryptography>=42"]
+       "httpx>=0.27", "fastapi>=0.110", "uvicorn>=0.29", "cryptography>=42",
+       "pytesseract>=0.3.10"]
 
 [tool.setuptools.packages.find]
 include = ["netra_core*"]

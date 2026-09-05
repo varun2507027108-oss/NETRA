@@ -90,7 +90,7 @@ path). On `RETRY`, render every string in `prompts` as inspector guidance.
 
 ### 4.2 ocr.tokens
 `{text: string, bbox: bbox, conf: number, engine: string, lang: string}`
-with `engine ∈ {mlkit, indic, bhashini}`.
+with `engine ∈ {mlkit, tesseract, indic, bhashini}` (tesseract = desktop dev only, never on Android).
 
 ### 4.3 fields — keyed by FIELD_KEYS
 
@@ -118,15 +118,15 @@ preview). Scale overlays by displayed-image size only.
 
 ## 6. ping payload
 `{schema_version, core_version, channel, capabilities: {stages_implemented:
-string[], stages_planned: string[], dossier: bool, signing: "platform", sync: bool}}` —
-use it to gray out UI for unbuilt stages.
+string[], stages_planned: string[], dossier: bool, signing: "platform", sync: bool, ocr_engines: string[]}}` —
+use it to gray out UI for unbuilt stages (and label the active OCR tier in report UI).
 
 ## 7. Enums
 - verdict: `PASS | VIOLATION | RETRY`
 - check status: `PASS | FAIL | NA`
 - shape_hint / geometry.shape: `rectangular | cylindrical | pouch | bottle | blister | other`
 - roi (future, s2): `PDP | BOP | PRICE | BARCODE`
-- ocr engine: `mlkit | indic | bhashini`
+- ocr engine: `mlkit | tesseract | indic | bhashini`
 - error code: `BAD_REQUEST | DECODE_ERROR | UNSUPPORTED_VERSION | STAGE_FAILURE | INTERNAL`
 - dossier.sig_status: `pending | signed | unsupported`
 
@@ -200,6 +200,9 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.2.1** — additive: OCR engine enum gains `tesseract` (desktop dev
+  tier); ping capabilities gains `ocr_engines`. s4 routing is
+  first-engine-with-tokens per tier order.
 - **1.2.0** — spec stage 8 live: `sync_now` + gateway config in `configure`,
   sync envelope §13, capabilities.sync. Institutional gateway
   (`backend/`, SQLite/PostgreSQL+PostGIS) with ingest, stats, heatmap,

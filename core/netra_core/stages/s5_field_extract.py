@@ -36,7 +36,8 @@ from ..rules.declarations import (
     FIELD_CONSUMER_CARE, FIELD_MFG_ADDRESS, FIELD_MFG_DATE, FIELD_MRP,
     FIELD_NET_QTY, FIELD_ORIGIN, FIELD_PRODUCT_NAME, FIELD_USP,
 )
-from ..rules.parsers import parse_date, parse_money, parse_quantity, parse_usp
+from ..rules.parsers import (parse_date, parse_money_lenient,
+                             parse_quantity, parse_usp)
 
 # ---- spatial constants (in units of the anchor token's bbox height) --------
 SAME_LINE_GAP = 2.0      # max inter-token x gap on the anchor's line
@@ -221,7 +222,7 @@ def _accepts(mode: str, text: str) -> bool:
     if mode == "qty":
         return parse_quantity(text) is not None
     if mode == "money":
-        return parse_money(text) is not None
+        return parse_money_lenient(text) is not None
     if mode == "usp":
         return parse_usp(text) is not None
     if mode == "date":
@@ -235,7 +236,7 @@ def _typed(key, raw):
         q = parse_quantity(raw)
         return (q.value, q.unit) if q else (None, None)
     if key == FIELD_MRP:
-        m = parse_money(raw)
+        m = parse_money_lenient(raw)
         return (m, None) if m is not None else (None, None)
     if key == FIELD_USP:
         u = parse_usp(raw)

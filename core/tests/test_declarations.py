@@ -26,6 +26,13 @@ class TestMRP:
     def test_empty(self):
         assert not check_mrp("").ok
 
+    def test_bare_amount_accepted(self):
+        assert check_mrp("MRP 99 (inclusive of all taxes)").ok
+
+    def test_bare_prefers_decimal_form(self):
+        r = check_mrp("MRP 7 49.50 (incl. of all taxes)")
+        assert r.ok and "49.50" in r.detail
+
 
 class TestPin:
     def test_marker(self):

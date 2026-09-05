@@ -15,7 +15,8 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from .parsers import normalize, parse_date, parse_money, parse_quantity
+from .parsers import (normalize, parse_date, parse_money, parse_money_lenient,
+                      parse_quantity)
 from .si_units import is_permitted
 
 # ---- canonical field keys (single source of truth; bridge/schema.py mirrors) ----
@@ -62,7 +63,7 @@ def check_mrp(text: str) -> DeclarationResult:
     missing = []
     if not _MRP_KEYWORD_RE.search(t):
         missing.append("'MRP' / 'Maximum Retail Price' wording")
-    amount = parse_money(t)
+    amount = parse_money_lenient(t)
     if amount is None:
         missing.append("rupee amount")
     if not _TAX_PHRASE_RE.search(t):

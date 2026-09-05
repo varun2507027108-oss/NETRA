@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from netra_core.rules.parsers import (
-    parse_date, parse_money, parse_quantity, parse_usp,
+    parse_date, parse_money, parse_money_lenient, parse_quantity, parse_usp,
 )
 from netra_core.rules.si_units import (
     find_prohibited_units, is_permitted, unit_syntax_ok,
@@ -95,3 +95,23 @@ class TestParseDate:
     def test_none(self):
         assert parse_date("hello world") is None
         assert parse_date("Best Before") is None
+
+
+class TestParseMoneyLenient:
+    def test_currency_marker_first(self):
+        assert parse_money_lenient(
+            "MRP ₹ 50.00 (incl. of all taxes)") == Decimal("50.00")
+
+    def test_bare_after_mrp_keyword(self):
+        assert parse_money_lenient(
+            "MRP 14.00 (incl. of all taxes)") == Decimal("14.00")
+
+    def test_bare_prefers_two_decimals(self):
+        assert parse_money_lenient(
+            "MRP 9 50.00 incl of all taxes") == Decimal("50.00")
+
+    def test_no_context_no_bare(self):
+        assert parse_money_lenient("Net Quantity: 70 g") is None
+
+    def test_keyword_without_number_is_none(self):
+        assert parse_money_lenient("MRP incl. of all taxes") is None

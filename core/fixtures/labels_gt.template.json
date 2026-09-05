@@ -1,0 +1,17 @@
+{
+  "P01_front": {
+    "shape": "pouch",
+    "dims_cm": { "height": 20.0, "width": 13.0 },
+    "fields": {
+      "product_name": "Instant Masala Noodles",
+      "net_qty": "Net Quantity: 70 gms",
+      "mrp": "MRP Rs 14.00 (incl. of all taxes)",
+      "mfg_date": "MFG 08/2026",
+      "mfg_address": "Mfd. by: Tasty Foods Ltd., Plot 21, Goa 403001",
+      "origin": "Made in India",
+      "consumer_care": "Consumer Care: Tasty Foods, Mumbai 400050, Tel: 1800-123-4567, care@tasty.in"
+    },
+    "expect_fail": ["13", "6(1)(c)"],
+    "notes": "gms printed; everything else clean"
+  }
+}

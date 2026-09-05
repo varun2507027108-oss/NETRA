@@ -87,6 +87,11 @@ def ping_payload() -> dict:
         sync_ready = False
     if not sync_ready:
         planned = planned + ("s8_sync",)
+    try:
+        from ..stages import s4_ocr
+        engines = list(s4_ocr.registered_engines())
+    except Exception:
+        engines = []
     return {
         "schema_version": SCHEMA_VERSION,
         "core_version": CORE_VERSION,
@@ -97,6 +102,7 @@ def ping_payload() -> dict:
             "dossier": "s7_dossier" in impl,
             "signing": "platform",          # KeyStore/Secure Enclave side
             "sync": sync_ready,
+            "ocr_engines": engines,
         },
     }
 
