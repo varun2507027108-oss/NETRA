@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "core_version": "0.1.0",
+  "channel": "netra.core",
+  "capabilities": {
+    "stages_implemented": [
+      "s1_frame_quality",
+      "s2_geometry_detect",
+      "s3_calibration",
+      "s4_ocr",
+      "s5_field_extract",
+      "s6_metrology",
+      "s7_dossier"
+    ],
+    "stages_planned": [],
+    "dossier": true,
+    "signing": "platform",
+    "sync": true,
+    "ocr_engines": []
+  }
+}

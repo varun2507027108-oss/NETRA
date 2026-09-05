@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "attempted": 0,
+  "synced": 0,
+  "failed": 0,
+  "deferred": 0,
+  "remaining": 0,
+  "offline": false,
+  "error": "sync gateway not configured — call configure with sync_url"
+}

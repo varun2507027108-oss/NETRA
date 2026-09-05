@@ -56,6 +56,8 @@ def run(ctx: PipelineContext, frame_bgr: np.ndarray) -> QualityReport:
         "laplacian_var": report.laplacian_var,
         "glare_pct": report.glare_pct,
         "prompts": list(report.prompts),
+        "glare_bbox": (report.glare_bbox.to_list()
+                       if report.glare_bbox is not None else None),
     }
     ctx.add_stage("s1_frame_quality", report.ok, ms)
     return report

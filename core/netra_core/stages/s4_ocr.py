@@ -60,6 +60,11 @@ def run(ctx: PipelineContext, frame_bgr=None, tokens=None) -> list:
                 ctx.tokens = list(produced)     # first tier with tokens wins
                 break
     ms = (time.perf_counter() - t0) * 1000.0
-    # zero tokens on a real scan = "no text decoded" -> RETRY, rescan
+    # zero tokens on a real scan = "no text decoded" -> RETRY — and the
+    # inspector must be TOLD (contract 4.1/9: every RETRY carries guidance;
+    # enforced by netra_core.qa.contract)
+    if not ctx.tokens and tokens is None:
+        ctx.quality.setdefault("prompts", []).append(
+            "No text decoded — move closer, steady the frame, check lighting")
     ctx.add_stage("s4_ocr", bool(ctx.tokens), ms)
     return ctx.tokens

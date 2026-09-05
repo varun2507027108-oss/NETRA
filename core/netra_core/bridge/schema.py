@@ -246,7 +246,9 @@ def _meta_out(request: Optional[ScanRequest], ctx: Optional[PipelineContext] = N
         return {"gps": request.gps, "device": request.device,
                 "options": request.options}
     if ctx is not None and ctx.meta:
-        return dict(ctx.meta)
+        m = dict(ctx.meta)
+        return {"gps": m.get("gps"), "device": m.get("device"),
+                "options": m.get("options")}
     return None
 
 

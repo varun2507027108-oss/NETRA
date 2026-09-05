@@ -1,0 +1,449 @@
+{
+  "schema_version": 1,
+  "scan_id": "199e6b5638114e8b9b3f4cb757652790",
+  "verdict": "VIOLATION",
+  "captured_utc": "2026-09-05T16:38:11.059Z",
+  "completed_utc": "2026-09-05T16:38:11.063Z",
+  "total_ms": 3.62,
+  "timings_ms": {
+    "s4_ocr": 0.0,
+    "s5_field_extract": 2.47,
+    "s6_metrology": 1.14
+  },
+  "quality": {
+    "ok": null,
+    "laplacian_var": null,
+    "glare_pct": null,
+    "prompts": [],
+    "glare_bbox": null
+  },
+  "geometry": {
+    "shape": "pouch",
+    "shape_detected": null,
+    "mm_per_px": 0.04,
+    "pda_cm2": 80.0,
+    "pda_method": "demo",
+    "rois": []
+  },
+  "ocr": {
+    "engines_used": [
+      "mlkit"
+    ],
+    "tokens": [
+      {
+        "text": "Instant Masala Noodles",
+        "bbox": [
+          200,
+          60,
+          420,
+          60
+        ],
+        "conf": 0.98,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Net Quantity:",
+        "bbox": [
+          120,
+          340,
+          150,
+          30
+        ],
+        "conf": 0.96,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "70 gms",
+        "bbox": [
+          280,
+          340,
+          90,
+          30
+        ],
+        "conf": 0.97,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "MRP",
+        "bbox": [
+          120,
+          388,
+          60,
+          40
+        ],
+        "conf": 0.97,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "₹ 14.00",
+        "bbox": [
+          185,
+          388,
+          110,
+          40
+        ],
+        "conf": 0.98,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Unit Sale Price",
+        "bbox": [
+          120,
+          432,
+          160,
+          30
+        ],
+        "conf": 0.95,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "₹ 0.35 / g",
+        "bbox": [
+          285,
+          432,
+          130,
+          30
+        ],
+        "conf": 0.96,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "MFG",
+        "bbox": [
+          40,
+          560,
+          70,
+          26
+        ],
+        "conf": 0.97,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "08/2026",
+        "bbox": [
+          115,
+          560,
+          90,
+          26
+        ],
+        "conf": 0.98,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Imported by: Global Foods,",
+        "bbox": [
+          40,
+          600,
+          300,
+          26
+        ],
+        "conf": 0.95,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Mumbai 400001",
+        "bbox": [
+          40,
+          630,
+          180,
+          26
+        ],
+        "conf": 0.96,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Made in PRC",
+        "bbox": [
+          40,
+          700,
+          160,
+          26
+        ],
+        "conf": 0.96,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Consumer Care: Global Foods,",
+        "bbox": [
+          40,
+          740,
+          300,
+          26
+        ],
+        "conf": 0.94,
+        "engine": "mlkit",
+        "lang": "en"
+      },
+      {
+        "text": "Tel: 1800-123-4567",
+        "bbox": [
+          40,
+          770,
+          220,
+          26
+        ],
+        "conf": 0.95,
+        "engine": "mlkit",
+        "lang": "en"
+      }
+    ]
+  },
+  "fields": {
+    "net_qty": {
+      "raw": "Net Quantity: 70 gms",
+      "value": "70",
+      "unit": "g",
+      "bbox": [
+        120,
+        340,
+        250,
+        30
+      ],
+      "conf": 0.96
+    },
+    "mrp": {
+      "raw": "MRP ₹ 14.00",
+      "value": "14.00",
+      "unit": null,
+      "bbox": [
+        120,
+        388,
+        175,
+        40
+      ],
+      "conf": 0.97
+    },
+    "usp": {
+      "raw": "Unit Sale Price ₹ 0.35 / g",
+      "value": "0.35",
+      "unit": "g",
+      "bbox": [
+        120,
+        432,
+        295,
+        30
+      ],
+      "conf": 0.95
+    },
+    "mfg_date": {
+      "raw": "MFG 08/2026",
+      "value": "2026-08-01",
+      "unit": null,
+      "bbox": [
+        40,
+        560,
+        165,
+        26
+      ],
+      "conf": 0.97
+    },
+    "origin": {
+      "raw": "Made in PRC",
+      "value": null,
+      "unit": null,
+      "bbox": [
+        40,
+        700,
+        160,
+        26
+      ],
+      "conf": 0.96
+    },
+    "mfg_address": {
+      "raw": "Imported by: Global Foods, Mumbai 400001",
+      "value": null,
+      "unit": null,
+      "bbox": [
+        40,
+        600,
+        300,
+        56
+      ],
+      "conf": 0.95
+    },
+    "consumer_care": {
+      "raw": "Consumer Care: Global Foods, Tel: 1800-123-4567",
+      "value": null,
+      "unit": null,
+      "bbox": [
+        40,
+        740,
+        300,
+        56
+      ],
+      "conf": 0.94
+    },
+    "product_name": {
+      "raw": "Instant Masala Noodles",
+      "value": null,
+      "unit": null,
+      "bbox": [
+        200,
+        60,
+        420,
+        60
+      ],
+      "conf": 0.98
+    }
+  },
+  "checks": [
+    {
+      "rule": "13",
+      "status": "FAIL",
+      "message": "Prohibited unit syntax 'gms' in net quantity — statutory symbol 'g' required. Rule 13, LMPC Rules 2011 — standard metric unit symbols; prohibited syntax (gms, ltr, cc, ...).",
+      "citation": "Rule 13, LMPC Rules 2011 — standard metric unit symbols; prohibited syntax (gms, ltr, cc, ...).",
+      "evidence_bbox": [
+        120,
+        340,
+        250,
+        30
+      ]
+    },
+    {
+      "rule": "6(1)(c)",
+      "status": "FAIL",
+      "message": "Unit 'gms' is not a standard SI symbol (Rule 6(1)(c) read with Rules 11-13).",
+      "citation": "Rule 6(1)(c), LMPC Rules 2011 — net quantity in standard metric units.",
+      "evidence_bbox": [
+        120,
+        340,
+        250,
+        30
+      ]
+    },
+    {
+      "rule": "6(1)(e)",
+      "status": "FAIL",
+      "message": "MRP non-compliant — missing statutory phrase 'inclusive of all taxes'.",
+      "citation": "Rule 6(1)(e), LMPC Rules 2011 — MRP with 'inclusive of all taxes' phrasing.",
+      "evidence_bbox": [
+        120,
+        388,
+        175,
+        40
+      ]
+    },
+    {
+      "rule": "6(11)",
+      "status": "FAIL",
+      "message": "USP math error — declared Rs 0.35 vs calculated Rs 0.20 per g (tolerance Rs 0.01)",
+      "citation": "Rule 6(11), LMPC Rules 2011 — Unit Sale Price declaration and reference units.",
+      "evidence_bbox": [
+        120,
+        432,
+        295,
+        30
+      ]
+    },
+    {
+      "rule": "6(1)(d)",
+      "status": "PASS",
+      "message": "Date of manufacture 08/2026.",
+      "citation": "Rule 6(1)(d), LMPC Rules 2011 — month & year of manufacture / packing / import (MM/YYYY or Month YYYY).",
+      "evidence_bbox": [
+        40,
+        560,
+        165,
+        26
+      ]
+    },
+    {
+      "rule": "6(1)(a)",
+      "status": "PASS",
+      "message": "Manufacturer/packer details with PIN 400001.",
+      "citation": "Rule 6(1)(a), LMPC Rules 2011 — name & complete postal address of manufacturer / packer / importer, incl. 6-digit PIN.",
+      "evidence_bbox": [
+        40,
+        600,
+        300,
+        56
+      ]
+    },
+    {
+      "rule": "6(1)(aa)",
+      "status": "FAIL",
+      "message": "Ambiguous origin 'PRC' — Rule 6(1)(aa) requires an explicit country (e.g., 'Made in PRC' must read 'Made in China').",
+      "citation": "Rule 6(1)(aa), LMPC Rules 2011 — country of origin, explicit (no ambiguous abbreviations).",
+      "evidence_bbox": [
+        40,
+        700,
+        160,
+        26
+      ]
+    },
+    {
+      "rule": "6(1)(n)",
+      "status": "FAIL",
+      "message": "Consumer care incomplete — missing email address, postal address with PIN.",
+      "citation": "Rule 6(1)(n), LMPC Rules 2011 — consumer care details (name, address, helpline, email).",
+      "evidence_bbox": [
+        40,
+        740,
+        300,
+        56
+      ]
+    },
+    {
+      "rule": "6(1)(b)",
+      "status": "PASS",
+      "message": "Common/generic name present — semantic adequacy needs manual review.",
+      "citation": "Rule 6(1)(b), LMPC Rules 2011 — common / generic name of the commodity.",
+      "evidence_bbox": [
+        200,
+        60,
+        420,
+        60
+      ]
+    },
+    {
+      "rule": "7",
+      "status": "FAIL",
+      "message": "Net quantity: measured 1.20 mm vs required 1.5 mm (normal print, PDA 80 cm²).",
+      "citation": "Rule 7 & Table-I (G.S.R. 629(E)), LMPC Rules 2011 — minimum numeral/letter height by PDA band.",
+      "evidence_bbox": [
+        120,
+        340,
+        250,
+        30
+      ]
+    },
+    {
+      "rule": "7",
+      "status": "PASS",
+      "message": "MRP: measured 1.60 mm vs required 1.5 mm (normal print, PDA 80 cm²).",
+      "citation": "Rule 7 & Table-I (G.S.R. 629(E)), LMPC Rules 2011 — minimum numeral/letter height by PDA band.",
+      "evidence_bbox": [
+        120,
+        388,
+        175,
+        40
+      ]
+    }
+  ],
+  "exemption": {
+    "exempt": false,
+    "clause": null,
+    "note": "No Rule 26 exemption applies; all Rule 6 declarations required."
+  },
+  "summary": {
+    "total": 11,
+    "pass": 4,
+    "fail": 7,
+    "na": 0
+  },
+  "dossier": null,
+  "meta": null,
+  "error": null
+}

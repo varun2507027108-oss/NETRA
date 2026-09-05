@@ -1,0 +1,32 @@
+{
+  "bad_request": {
+    "schema_version": 1,
+    "scan_id": "",
+    "accepted": false,
+    "sig_status": "pending",
+    "verified": false,
+    "error": {
+      "code": "BAD_REQUEST",
+      "message": "scan_id, signature, cert_pem are required strings"
+    }
+  },
+  "not_found": {
+    "schema_version": 1,
+    "scan_id": "00000000000000000000000000000000",
+    "accepted": false,
+    "sig_status": "pending",
+    "verified": false,
+    "error": {
+      "code": "NOT_FOUND",
+      "message": "no completed scan 00000000000000000000000000000000"
+    }
+  },
+  "accepted_verified": {
+    "schema_version": 1,
+    "scan_id": "ee003f228b5f42af90b82dce2253ad2f",
+    "accepted": true,
+    "sig_status": "signed",
+    "verified": true,
+    "error": null
+  }
+}

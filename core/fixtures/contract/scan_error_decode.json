@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scan_id": "",
+  "verdict": "RETRY",
+  "captured_utc": "2026-09-05T16:38:11.383Z",
+  "completed_utc": "2026-09-05T16:38:11.383Z",
+  "total_ms": 0.0,
+  "timings_ms": {},
+  "quality": {
+    "ok": null,
+    "laplacian_var": null,
+    "glare_pct": null,
+    "prompts": [],
+    "glare_bbox": null
+  },
+  "geometry": null,
+  "ocr": {
+    "engines_used": [],
+    "tokens": []
+  },
+  "fields": {},
+  "checks": [],
+  "exemption": null,
+  "summary": {
+    "total": 0,
+    "pass": 0,
+    "fail": 0,
+    "na": 0
+  },
+  "dossier": null,
+  "meta": {
+    "gps": null,
+    "device": null,
+    "options": {
+      "institutional": false,
+      "fast_food": false,
+      "commodity": "",
+      "blown": false
+    }
+  },
+  "error": {
+    "code": "DECODE_ERROR",
+    "message": "invalid base64 image: Only base64 data is allowed",
+    "stage": null
+  }
+}

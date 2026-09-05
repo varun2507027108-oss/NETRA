@@ -52,7 +52,7 @@ Act). The core never holds private keys; signing happens on the capture device.
 ┌───────────────┴──────────────────────────────────┴────────────────┐
 │                   netra_core — the statutory engine               │
 │   s1 → s2 → s3 → s4 → s5 → s6 → s7  ·  rules/ (stdlib, tested)   │
-│   bridge/schema.py — the frozen JSON contract (v1.2.2)            │
+│   bridge/schema.py — the frozen JSON contract (v1.2.3)            │
 └──────┬───────────────────────────────┬────────────────────────────┘
        │ SQLite WAL evidence ledger    │ s8 sync, when connectivity
        │ (offline queue · append-only) │ returns
@@ -114,12 +114,15 @@ set `TESSERACT_CMD`. Optional: `pip install -e ".[ocr]"`.
 
 ## Status
 
-- 291 tests collected · 289 passing (2 await the desktop OCR binary)
+- Test suite: run `pytest` (~320 tests; environment gaps reported by
+  `scripts/doctor.py`)
 - Statutory core: **0.45 ms** (25-run mean, `scripts/bench_pipeline.py`);
   spec end-to-end target 1.2–1.5 s with on-device ML Kit
-- Bridge contract **v1.2.2** — all 8 stages, signing handshake, sync envelope
-- Golden-report engine ready; first real-photo precision/recall pending the
-  fixture round (`core/fixtures/README.md`)
+- Bridge contract **v1.2.3** — all 8 stages, signing handshake, sync
+  envelope, **executable validator** (`netra_core.qa.contract`,
+  `scripts/check_payload.py`)
+- Golden-report engine ready; canonical Flutter mock payloads recorded in
+  `core/fixtures/contract/`
 
 ## Roadmap
 

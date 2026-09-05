@@ -305,7 +305,8 @@ def run_demo_scan(tokens=None, label=None, options=None,
         ctx.meta = {"device": {"model": "NETRA desktop demo",
                                "os": sys.platform},
                     "gps": {"lat": 19.0760, "lon": 72.8777,
-                            "source": "demo"}}
+                            "source": "demo"},
+                    "options": options or {}}
         s7_dossier.run(ctx, source_frame=frame, options=options)
 
     result = result_from_context(ctx)

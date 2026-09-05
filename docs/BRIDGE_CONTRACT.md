@@ -1,4 +1,4 @@
-# NETRA Bridge Contract — v1.2.2
+# NETRA Bridge Contract — v1.2.3
 
 Single source of truth for the JSON seam between `netra_core` (Python) and
 the Flutter client. Machine twin: `core/netra_core/bridge/schema.py`.
@@ -209,6 +209,11 @@ Never throw across the bridge. Every failure is a full ScanResult with
 ```
 
 ## 12. Changelog
+- **1.2.3** — no payload-surface changes. s1 now populates
+  `quality.glare_bbox`; every RETRY now carries `quality.prompts`
+  guidance (s4/s5). Tooling: `netra_core.qa.contract` executable
+  validators, `scripts/record_contract_fixtures.py` (canonical Flutter
+  mocks, committed), `scripts/check_payload.py` CLI.
 - **1.2.2** — additive: s2 (deterministic) live — geometry gains
   `shape_detected` and populated `rois` (PACKAGE, BARCODE); roi enum
   extends with PACKAGE. Evidence bboxes remain in submitted-image space

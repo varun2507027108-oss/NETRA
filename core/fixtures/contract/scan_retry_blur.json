@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scan_id": "e267ce5fc5e340c183379272c115f598",
+  "verdict": "RETRY",
+  "captured_utc": "2026-09-05T16:38:11.357Z",
+  "completed_utc": "2026-09-05T16:38:11.380Z",
+  "total_ms": 19.63,
+  "timings_ms": {
+    "s1_frame_quality": 19.63
+  },
+  "quality": {
+    "ok": false,
+    "laplacian_var": 0.0,
+    "glare_pct": 0.0,
+    "prompts": [
+      "Hold steady — frame is blurred"
+    ],
+    "glare_bbox": null
+  },
+  "geometry": null,
+  "ocr": {
+    "engines_used": [],
+    "tokens": []
+  },
+  "fields": {},
+  "checks": [],
+  "exemption": null,
+  "summary": {
+    "total": 0,
+    "pass": 0,
+    "fail": 0,
+    "na": 0
+  },
+  "dossier": null,
+  "meta": {
+    "gps": null,
+    "device": null,
+    "options": {
+      "institutional": false,
+      "fast_food": false,
+      "commodity": "",
+      "blown": false
+    }
+  },
+  "error": null
+}

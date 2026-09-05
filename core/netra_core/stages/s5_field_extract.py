@@ -328,5 +328,12 @@ def run(ctx: PipelineContext) -> dict:
             if fv.bbox is not None:
                 ctx.font_heights[key] = round(fv.bbox.h * ctx.mm_per_px, 3)
     ms = (time.perf_counter() - t0) * 1000.0
+    # tokens decoded but nothing statutory recognized -> RETRY, and the
+    # inspector must be told (captured the wrong face / not a label).
+    # Guard: when ctx.tokens is empty, s4 already spoke.
+    if not fields and ctx.tokens:
+        ctx.quality.setdefault("prompts", []).append(
+            "No statutory declarations recognized — capture the "
+            "principal display face")
     ctx.add_stage("s5_field_extract", bool(fields), ms)
     return fields
