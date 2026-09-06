@@ -8,9 +8,10 @@
 
 [![CI](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml/badge.svg)](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/varun2507027108-oss/NETRA/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Stages](https://img.shields.io/badge/pipeline-8%2F8%20stages%20live-brightgreen?style=flat-square)](#-the-pipeline--all-8-spec-stages-live)
-[![Tests](https://img.shields.io/badge/tests-323%20passing-success?style=flat-square)](#-testing)
-[![Contract](https://img.shields.io/badge/bridge%20contract-v1.2.4-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
+[![Tests](https://img.shields.io/badge/tests-338%20passing-success?style=flat-square)](#-testing)
+[![Contract](https://img.shields.io/badge/bridge%20contract-v1.3.0-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
 [![Release](https://img.shields.io/badge/release-v0.1.0-2ea44f?style=flat-square)](https://github.com/varun2507027108-oss/NETRA/releases)
 
 ***netra* (नेत्र) — Sanskrit: "the eye."** The inspector's eye that never tires, never blinks,

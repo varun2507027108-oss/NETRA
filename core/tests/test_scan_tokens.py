@@ -2,6 +2,7 @@ import base64
 import hashlib
 import io
 import json
+import math
 
 import pytest
 
@@ -188,3 +189,31 @@ def test_contract_validator_on_requests():
     bad2 = _body(_DEMO_TOKENS)
     bad2["tokens"][0]["engine"] = "easyocr"
     assert contract.validate_scan_tokens_request(bad2)
+
+
+def test_pda_from_inspector_dims_not_geometry():
+    # no pda_cm2 in geometry — dims in options must carry it (Rule 7 interim)
+    r = _run(_body(_tokens_from_label(COMPLIANT_LABEL),
+                   geometry={"mm_per_px": 0.05},
+                   options={"package_height_cm": 20.0, "package_width_cm": 13.0}))
+    assert r["geometry"]["pda_cm2"] == 260.0
+    assert r["geometry"]["pda_method"] == "inspector-dims"
+    # tokens h=30px x 0.05 = 1.5 mm; PDA 260 cm2 -> band 3 (2.5 mm min) -> FAIL
+    assert r["verdict"] == "VIOLATION"
+
+
+def test_pda_cylindrical_from_dims():
+    r = _run(_body(_DEMO_TOKENS, shape_hint="cylindrical",
+                   options={"package_height_cm": 10.0,
+                            "package_diameter_cm": 6.0}))
+    assert r["geometry"]["pda_cm2"] == pytest.approx(
+        0.4 * 10 * math.pi * 6, rel=1e-3)
+    assert r["geometry"]["pda_method"] == "inspector-dims"
+
+
+def test_pda_sanity_bounds_drop_garbage_dims():
+    r = _run(_body(_DEMO_TOKENS,
+                   options={"package_height_cm": 300.0,
+                            "package_width_cm": 250.0}))
+    assert r["geometry"] is None          # 75,000 cm2 -> out of sanity range
+
