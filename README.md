@@ -1,140 +1,324 @@
-# NETRA — नेत्र
+<div align="center">
+
+# 👁️ NETRA · नेत्र
+
+### One photograph → a deterministic statutory audit → a signed, court-shaped violation dossier
+
+**Offline-first compliance engine for the Legal Metrology (Packaged Commodities) Rules, 2011** · India
 
 [![CI](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml/badge.svg)](https://github.com/varun2507027108-oss/NETRA/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/varun2507027108-oss/NETRA/actions)
+[![Stages](https://img.shields.io/badge/pipeline-8%2F8%20stages%20live-brightgreen?style=flat-square)](#-the-pipeline--all-8-spec-stages-live)
+[![Tests](https://img.shields.io/badge/tests-323%20passing-success?style=flat-square)](#-testing)
+[![Contract](https://img.shields.io/badge/bridge%20contract-v1.2.4-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
+[![Release](https://img.shields.io/badge/release-v0.1.0-2ea44f?style=flat-square)](https://github.com/varun2507027108-oss/NETRA/releases)
 
-**Offline-first statutory compliance auditor for pre-packaged commodities.**
-SIH26034 · Legal Metrology Act, 2009 · Legal Metrology (Packaged Commodities) Rules, 2011
+***netra* (नेत्र) — Sanskrit: "the eye."** The inspector's eye that never tires, never blinks,
+and reads font heights in fractions of a millimetre.
 
-An inspector photographs a package. NETRA runs a deterministic audit of every
-machine-checkable statutory declaration — Table-I font heights, Unit Sale Price
-arithmetic, unit syntax, MRP phrasing, PIN codes, country of origin — then files
-a cryptographically signed, court-shaped violation dossier that survives
-zero-connectivity markets and syncs to the institutional gateway when the
-network returns.
+</div>
 
-## Why
+---
 
-- Tens of millions of retail SKUs; manual inspection covers < 0.01% of packages.
-- Violations are sub-visual: 1.2 mm fonts, "gms" instead of "g", a missing
-  "incl. of all taxes", ₹/g math that doesn't divide.
-- Inspectors need evidence that stands up in court — not a screenshot.
+## 📋 The problem
 
-## Pipeline (spec 8 stages — all live on the deterministic engine)
+> 📦 **Tens of millions** of pre-packaged SKUs circulate across Indian retail, every single day.
+> 🔍 Legal metrology inspectors manually reach **less than 0.01%** of them.
+> 👁️ The violations are **sub-visual** — a 1.2 mm numeral, a missing *"incl. of all taxes"*, a ₹/g price that doesn't divide, *"gms"* printed instead of *"g"*.
 
-| # | Stage | Function | Live engine | Device-round upgrade | Spec budget |
+**NETRA** turns one smartphone photograph into a full deterministic audit of every machine-checkable statutory declaration — then files a cryptographically signed, court-shaped dossier that survives zero-connectivity kirana basements and syncs to the institutional gateway when the network returns.
+
+| | |
+|---|---|
+| 🧠 **Deterministic, not probabilistic** | the legal decision path is rules + `Decimal` arithmetic — same input, same verdict, every time. ~0.45 ms. |
+| ✈️ **Offline-first** | the network only ever touches the queue drain; a scan with zero bars behaves identically to one on 5G |
+| ⚖️ **Court-shaped evidence** | SHA-256 chain → hardware-backed ECDSA P-256 → §63(4) BSA certificate → append-only ledger |
+| 🏛️ **Institutional integration** | e-Daakhil & NCH 1915 payloads, PostGIS violation heatmaps for inspector route planning |
+
+---
+
+## ⚙️ The pipeline — all 8 spec stages, live
+
+| # | Stage | What it does | Live engine today | Device-round upgrade | Budget |
 |---|---|---|---|---|---|
-| 1 | s1 quality gate | Laplacian ≥ 100, glare > 242, repositioning prompts | OpenCV | — | < 3 ms |
-| 2 | s2 geometry | package silhouette, fiducial-aware crop, shape hint, barcode ROI | classical CV | YOLO26n on LiteRT (PDP/BOP/PRICE ROIs) | ~39 ms |
-| 3 | s3 calibration | ArUco homography + solvePnP → mm/px, cylinder unwarp, Rule 7(4) PDA | OpenCV | + TPS pouch correction | ~15 ms |
-| 4 | s4 OCR | tier router: first engine with tokens wins | registry + Tesseract (desktop dev tier) | ML Kit v2 + IndicPhotoOCR + Bhashini ULCA | < 1 ms routing |
-| 5 | s5 extraction | anchor→value spatial aggregation (L1–L4) | deterministic K-NN heuristics | — | < 1 ms |
-| 6 | s6 rule engine | Table-I fonts, glyph aspect, USP math, Rule 6/13/26 | stdlib + Decimal | — | < 1 ms |
-| 7 | s7 dossier | evidence PDF, hash chain, §63(4) certificate | ReportLab | platform signing (KeyStore / Secure Enclave) | ~20 ms |
-| 8 | s8 sync | offline queue drain, institutional exports | stdlib urllib + SQLite | — | async |
+| 1 | ✅ **s1 · quality gate** | Laplacian ≥ 100 blur gate, glare > 242, inspector repositioning prompts | OpenCV | — | < 3 ms |
+| 2 | ✅ **s2 · geometry** | package silhouette, fiducial-aware crop, shape suggestion, barcode ROI | classical CV | YOLO26n on LiteRT | ~39 ms |
+| 3 | ✅ **s3 · calibration** | ArUco homography + solvePnP → mm/px, cylindrical unwarp, Rule 7(4) PDA | OpenCV | + TPS pouch correction | ~15 ms |
+| 4 | ✅ **s4 · OCR** | 3-tier router — first engine with tokens wins | registry + Tesseract *(desktop dev tier)* | ML Kit v2 · IndicPhotoOCR · Bhashini | < 1 ms routing |
+| 5 | ✅ **s5 · extraction** | anchor→value spatial aggregation (L1–L4), typed-parse gating | deterministic K-NN heuristics | — | < 1 ms |
+| 6 | ✅ **s6 · metrology** | Table-I font heights, glyph aspect, USP math, Rule 6/13/26 | stdlib + `Decimal` | — | < 1 ms |
+| 7 | ✅ **s7 · dossier** | evidence PDF, hash chain, §63(4) certificate page | ReportLab | platform KeyStore signing | ~20 ms |
+| 8 | ✅ **s8 · sync** | offline queue drain → gateway → institutional exports | stdlib urllib + SQLite | — | async |
 
-## Evidence chain
+<details>
+<summary><b>📐 Statutory depth — what the rule engine actually encodes</b></summary>
 
-image bytes → SHA-256 → dossier PDF → SHA-256 → **hardware-backed ECDSA P-256**
-over `"NETRA-DOSSIER-v1|<scan_id>|<pdf_sha256>"` → core verifies → append-only
-SQLite WAL ledger → `netra.scan.v1` sync envelope → institutional gateway
-(PostgreSQL + PostGIS) → **e-Daakhil / NCH 1915** payloads.
+**Table-I minimum font heights (Rule 7, G.S.R. 629(E)):**
 
-The dossier carries a certificate template under **§63(4), Bharatiya Sakshya
-Adhiniyam, 2023** (the provision that replaced §65B(4) of the Indian Evidence
-Act). The core never holds private keys; signing happens on the capture device.
+| Principal Display Area | Normal print | Blown / molded / embossed |
+|---|---|---|
+| ≤ 50 cm² | 1.0 mm | 1.5 mm |
+| 50 – 100 cm² | 1.5 mm | 3.0 mm |
+| 100 – 500 cm² | 2.5 mm | 4.0 mm |
+| 500 – 2500 cm² | 4.0 mm | 6.0 mm |
+| > 2500 cm² | 6.0 mm | 6.0 mm |
 
-## Architecture
+**Character width (Rule 7(3)):** width ≥ height/3 — statutory exemptions for `1`, `i`, `I`, `l` only.
 
-```
-┌────────────────────────── Flutter (apps/mobile) ──────────────────────────┐
-│  scanner UI · report screen · dossier viewer · history · sync banner      │
-└───────────────┬──────────────────────────────────────────┬────────────────┘
-     MethodChannel "netra.core"                   HTTP 127.0.0.1:8734
-     (Android · Chaquopy, in-process)             (desktop / emulator dev)
-┌───────────────┴──────────────────────────────────┴────────────────┐
-│                   netra_core — the statutory engine               │
-│   s1 → s2 → s3 → s4 → s5 → s6 → s7  ·  rules/ (stdlib, tested)   │
-│   bridge/schema.py — the frozen JSON contract (v1.2.3)            │
-└──────┬───────────────────────────────┬────────────────────────────┘
-       │ SQLite WAL evidence ledger    │ s8 sync, when connectivity
-       │ (offline queue · append-only) │ returns
-┌──────┴──────────┐        ┌──────────┴─────────────────────────────┐
-│ dossiers/ (PDF) │        │ netra_backend — institutional gateway  │
-│ + ECDSA P-256   │        │ FastAPI · PostgreSQL + PostGIS         │
-│ BSA §63(4) cert │        │ /stats /heatmap /export/edakakhil      │
-└─────────────────┘        │ /export/nch1915                        │
-                           └────────────────────────────────────────┘
-```
+**Unit Sale Price (Rule 6(11)):** ₹/g below 1 kg, ₹/kg above · ₹/ml below 1 L, ₹/L above · ₹/cm below 1 m, ₹/m above · **|declared − calculated| ≤ ₹0.01** · exactly-one-unit exemption.
 
-## Design principles
+**Prohibited syntax (Rule 13):** `gms`, `grm`, `kilo`, `kgs`, `ltr`, `cc`, `cu.cm`, `pkts`, `doz` → automatic violation.
 
-1. **Deterministic over probabilistic.** The legal decision path is rules +
-   `Decimal` arithmetic — 0.45 ms, ~290 unit tests at statutory boundaries
-   (PDA band edges, ₹0.01 USP tolerance, the 1-unit exemption, tobacco and
-   cement carve-outs). No LLM in the verdict.
-2. **Offline-first.** Cloud OCR is a fallback tier, never on the critical
-   path; scans complete with zero connectivity.
-3. **The rules layer is stdlib-only** — identical code in pytest, in the
-   desktop bridge, and inside Chaquopy on Android.
-4. **Money and quantities are `Decimal` end-to-end** and cross the bridge as
-   strings — no float ever touches statutory arithmetic.
-5. **The bridge contract is law** (`docs/BRIDGE_CONTRACT.md`): 17-key result
-   schema, always-present keys, in-band errors; Dart renders `checks[]` and
-   never re-derives compliance.
-6. **Never worse than status quo.** Every CV stage degrades to a no-op when
-   unsure — cluttered scene → no crop, no ROI, pipeline proceeds.
+**Exemptions (Rule 26):** ≤ 10 g/mL (except tobacco, bidi, pan masala) · > 25 kg/L bulk (except cement & fertilizers up to 50 kg) · institutional supply · fast-food packaging.
 
-## Repo layout
+**Origin (Rule 6(1)(aa)):** "Made in PRC" fails — an explicit country is required.
 
-```
-core/        netra_core (Python) — pipeline, rules, dossier, sync, bridge
-  fixtures/  real-photo validation set + golden-report runner (see README)
-  scripts/   demos, fiducial card generator, bench, doctor
-backend/     netra_backend — institutional gateway (SQLite / PostGIS)
-docs/        BRIDGE_CONTRACT.md, SUBMISSION.md
-apps/mobile/ Flutter client (built against the contract)
+All of it is unit-tested at the statutory boundaries: the PDA band edges, the ₹0.01 tolerance, the 1000 g = 1 kg exemption, the tobacco and cement carve-outs.
+</details>
+
+---
+
+## 🔐 The evidence chain
+
+```mermaid
+flowchart LR
+    A["📸 capture"] -->|"SHA-256"| B["📄 dossier PDF<br/>evidence crops · citations<br/>BSA §63(4) certificate"]
+    B -->|"SHA-256"| C["🔐 ECDSA P-256<br/>hardware KeyStore<br/>NETRA-DOSSIER-v1 · scan_id · hash"]
+    C --> D[("append-only<br/>SQLite WAL ledger")]
+    D -->|"idempotent sync<br/>when connectivity returns"| E["🏛 gateway · PostGIS"]
 ```
 
-## Quickstart (Windows; POSIX analogous)
+- The signature covers the exact payload `"NETRA-DOSSIER-v1|<scan_id>|<pdf_sha256>"` — pinned in Python, in Kotlin, and in a tripwire test
+- The certificate page cites **§63(4), Bharatiya Sakshya Adhiniyam, 2023** — the provision that replaced §65B(4) of the Indian Evidence Act
+- The core **never holds private keys**; signing happens on the capture device, and NETRA never signs for a person
+- The ledger is **append-only**: re-sync is idempotent, rejected envelopes surface for a human, evidence is never deleted
+
+---
+
+## 🧭 Architecture
+
+```mermaid
+flowchart TB
+    subgraph APP["📱 Flutter field app — apps/mobile"]
+        UI["Scanner · Report screen · Dossier viewer · Sync banner"]
+    end
+
+    subgraph SEAM["🔗 Bridge — frozen JSON contract v1.2"]
+        MC["MethodChannel netra.core<br/>Android · Chaquopy · in-process"]
+        HB["HTTP 127.0.0.1:8734<br/>desktop / dev bridge"]
+    end
+
+    subgraph CORE["🧠 netra_core — the statutory engine · one codebase, everywhere"]
+        RULES["📜 rules/ — Rule 6 · 7 · 13 · 26<br/>stdlib-only · Decimal arithmetic"]
+        PIPE["s1 → s2 → s3 → s4 → s5 → s6 → s7<br/>vision + metrology pipeline"]
+    end
+
+    PIPE --> LEDGER[("SQLite WAL<br/>evidence ledger")]
+    LEDGER --> SYNC["s8 · offline queue drain"]
+    SYNC --> GW["🏛 Institutional gateway<br/>FastAPI · PostgreSQL + PostGIS"]
+    GW --> ED["📄 e-Daakhil payload"]
+    GW --> NCH["📞 NCH 1915 payload"]
+
+    APP --> MC
+    APP -.-> HB
+    MC --> CORE
+    HB --> CORE
+```
+
+**Design principles, in one table:**
+
+| Principle | Why |
+|---|---|
+| 🧮 Deterministic over probabilistic | no LLM in the verdict path — 0.45 ms, auditable, cross-examinable, offline |
+| 📦 The rules layer is stdlib-only | identical code in pytest, in the desktop bridge, and inside Chaquopy on Android |
+| 💰 Money & quantities are `Decimal` end-to-end | crossing the bridge as *strings* — no float ever touches statutory arithmetic |
+| 📜 The bridge contract is law | 17-key result schema, machine-validated by `netra_core.qa.contract` — drift is a test failure, not a debate |
+| 🛟 Never worse than status quo | every CV stage degrades to a no-op when unsure — cluttered scene → no crop, pipeline proceeds |
+
+---
+
+## 🖥️ Quick start
+
+**Windows** (the reference environment):
 
 ```bash
-cd core
+git clone https://github.com/varun2507027108-oss/NETRA
+cd NETRA/core
+
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
 .venv\Scripts\python -m pip install -e ..\backend
-.venv\Scripts\python scripts\doctor.py          # environment report
-.venv\Scripts\pytest                            # ~290 tests
-.venv\Scripts\python scripts\demo_dossier.py    # verdict → PDF → signature → ledger
-.venv\Scripts\python scripts\demo_sync.py       # ledger → gateway → e-Daakhil/NCH
-.venv\Scripts\python scripts\make_fiducial_card.py   # print at 100% scale
-.venv\Scripts\bench_pipeline.py --runs 25
-.venv\Scripts\python -m netra_core.bridge.server     # desktop bridge, port 8734
+
+.venv\Scripts\python scripts\doctor.py        # 🩺 environment report — what's ready, what's missing
+.venv\Scripts\pytest                          # 🧪 323 tests
+.venv\Scripts\python scripts\demo_all.py      # 🎬 the full 8-stage story, one command
 ```
 
-Tesseract (desktop OCR tier): `winget install UB-Mannheim.TesseractOCR`, or
-set `TESSERACT_CMD`. Optional: `pip install -e ".[ocr]"`.
+<details>
+<summary><b>🐧 Linux / macOS variant</b></summary>
 
-## Status
+```bash
+git clone https://github.com/varun2507027108-oss/NETRA
+cd NETRA/core
 
-- Test suite: run `pytest` (~320 tests; environment gaps reported by
-  `scripts/doctor.py`)
-- Statutory core: **0.45 ms** (25-run mean, `scripts/bench_pipeline.py`);
-  spec end-to-end target 1.2–1.5 s with on-device ML Kit
-- Bridge contract **v1.2.3** — all 8 stages, signing handshake, sync
-  envelope, **executable validator** (`netra_core.qa.contract`,
-  `scripts/check_payload.py`)
-- Golden-report engine ready; canonical Flutter mock payloads recorded in
-  `core/fixtures/contract/`
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pip install -e ../backend
 
-## Roadmap
+sudo apt-get install -y tesseract-ocr tesseract-ocr-eng libgl1 libglib2.0-0  # desktop OCR tier
 
-1. Real-photo fixture round → measured rule precision/recall
-2. On-device OCR (ML Kit v2 + IndicPhotoOCR via the Chaquopy bridge)
-3. YOLO26n provider for s2 (PDP/BOP/PRICE ROIs) — drops into the existing
-   `run()` surface; contract unchanged
-4. Flutter field app (Antigravity, building against `BRIDGE_CONTRACT.md`)
-5. TPS unwarping for crumpled pouches (with fixture data)
+python scripts/doctor.py
+pytest
+python scripts/demo_all.py
+```
+</details>
+
+<details>
+<summary><b>🖨️ Printing the fiducial card</b></summary>
+
+```bash
+.venv\Scripts\python scripts\make_fiducial_card.py
+```
+
+Print at **100% scale** (no fit-to-page). The 40 mm ArUco marker is what Stage 3 uses to recover
+millimetre-per-pixel scale — hold it flat against the package, adjacent to the label.
+</details>
 
 ---
-Smart India Hackathon 2025 · Problem SIH26034 · Department of Consumer
-Affairs / Legal Metrology Division.
+
+## 🎬 The demo — what one command shows
+
+`scripts/demo_all.py` runs the complete narrative against a label with **five planted statutory traps** — the exact sub-visual non-compliances the problem statement describes:
+
+| Planted on the label | Rule fired | NETRA's finding |
+|---|---|---|
+| `Net Quantity: 200 gms` | Rule 13 | prohibited symbol — statutory is `g` |
+| `MRP ₹ 14.00` *(no tax phrase)* | Rule 6(1)(e) | missing *"incl. of all taxes"* |
+| `Unit Sale Price ₹ 0.35 / g` | Rule 6(11) | math error — MRP ÷ qty = ₹0.20, tolerance ₹0.01 |
+| `Made in PRC` | Rule 6(1)(aa) | ambiguous origin — an explicit country is required |
+| 1.2 mm numerals on an 80 cm² PDA | Rule 7 | below the 1.5 mm Table-I minimum |
+
+```text
+$ .venv/Scripts/python scripts/demo_all.py
+
+=== 1 · THE SCAN — five planted statutory traps =========================
+verdict: VIOLATION   (7 FAIL / 4 PASS / 0 NA · 0.9 ms)
+  [FAIL] Rule 13       Prohibited unit syntax 'gms' — statutory symbol 'g' required
+  [FAIL] Rule 6(1)(e)  MRP non-compliant — missing 'inclusive of all taxes'
+  [FAIL] Rule 6(11)    USP math error — declared Rs 0.35 vs calculated Rs 0.20
+  [FAIL] Rule 6(1)(aa) Ambiguous origin 'PRC' — explicit country required
+  [FAIL] Rule 7        Net quantity: 1.20 mm vs required 1.5 mm (PDA 80 cm²)
+
+=== 2 · THE DOSSIER =====================================================
+pdf    : core/demo_output/netra/dossiers/netra_8a99d2a2...pdf
+sha256 : 3920cb89db02a5045e2776f2e3193e6a...
+
+=== 3 · THE SIGNATURE — hardware-backed ECDSA P-256 =====================
+result : accepted=True verified=True status=signed
+
+=== 4 · THE OFFLINE LEDGER ==============================================
+ledger : {"total": 1, "pending_sync": 1, "signed": 1, "dossiers": 1}
+
+=== 7 · THE EXPORTS — e-Daakhil & NCH 1915 ==============================
+e-Daakhil: respondent 'Global Foods', 7 violations, evidence-linked
+NCH 1915 : pin zone Maharashtra / Madhya Pradesh / Goa / Chhattisgarh
+
+=== 8 · THE NUMBERS =====================================================
+statutory core (s5+s6, 25-run mean): 0.45 ms
+```
+
+**Open the PDF.** Red evidence boxes over every failing declaration, rule citations under every finding, and the §63(4) certificate page — that's the artifact an evaluator remembers.
+
+---
+
+## 🧪 Testing
+
+| | |
+|---|---|
+| ✅ **323 tests** | green on GitHub Actions, Python 3.11 + 3.13 — [the badge is live](https://github.com/varun2507027108-oss/NETRA/actions) |
+| 🎯 **Statutory boundary tests** | PDA band edges (50/100/500/2500 cm²) · the ₹0.01 USP tolerance · the exactly-one-unit exemption · tobacco & cement carve-outs · "Made in PRC" |
+| 📜 **Executable contract validators** | every payload shape the core emits is validated in-test; Flutter mock fixtures are machine-validated at record time (`core/fixtures/contract/`) |
+| 🏞️ **Golden-report engine** | photograph real packages → per-fixture rule precision/recall (`core/fixtures/README.md`) |
+| 🩺 **Environment doctor** | `scripts/doctor.py` — one command, every dependency, fix hints |
+
+---
+
+## 📁 Repository layout
+
+<details>
+<summary><b>Expand the tree</b></summary>
+
+```
+NETRA/
+├── core/                    🧠 netra_core — the statutory engine (Python)
+│   ├── netra_core/
+│   │   ├── rules/           Rule 6 · 7 · 13 · 26 — stdlib-only, fully unit-tested
+│   │   ├── stages/          s1…s7 pipeline stages
+│   │   ├── ocr/             Tesseract desktop adapter (line-token normalization)
+│   │   ├── dossier/         PDF builder + evidence-chain crypto
+│   │   ├── persistence/     SQLite WAL evidence ledger
+│   │   ├── sync/            offline queue drain + e-Daakhil/NCH exporters
+│   │   ├── bridge/          the frozen JSON contract, FastAPI + Chaquopy seams
+│   │   ├── vision/          ArUco, geometry, calibration helpers
+│   │   └── qa/              golden-report engine + executable contract validators
+│   ├── tests/               323 tests
+│   ├── scripts/             doctor · demo_all · bench · fiducial card · fixtures · payload checker
+│   └── fixtures/            contract mocks (committed) · real-photo validation protocol
+├── backend/                 🏛 institutional gateway — FastAPI · SQLAlchemy · PostGIS
+├── native/android/          🔌 the platform seam — NetraCorePlugin.kt · NetraKeystore.kt · smoke spike
+├── apps/mobile/             📱 Flutter field app (built against the bridge contract)
+└── docs/                    📚 everything below
+```
+</details>
+
+---
+
+## 📚 Documentation
+
+| Doc | What's inside |
+|---|---|
+| [`docs/BRIDGE_CONTRACT.md`](docs/BRIDGE_CONTRACT.md) | the frozen JSON seam between core and Flutter — **it is law** |
+| [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | the evaluation brief — verify the whole system in ten minutes |
+| [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | the timed 5-minute judge demo, with contingency insurance |
+| [`docs/JUDGE_QA.md`](docs/JUDGE_QA.md) | 13 anticipated judge questions, answered honestly |
+| [`docs/ANDROID_INTEGRATION.md`](docs/ANDROID_INTEGRATION.md) | the Chaquopy spike, the native seam, the Path A/B decision tree |
+| [`core/fixtures/README.md`](core/fixtures/README.md) | the real-photo validation protocol |
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Deterministic 8-stage pipeline — every spec stage live on the deterministic engine
+- [x] Evidence chain: dossier → ECDSA P-256 → append-only ledger → sync → exports
+- [x] Bridge contract v1.2.4 + executable validators + machine-validated Flutter mocks
+- [x] CI green — 323 tests, Python 3.11 & 3.13
+- [x] Android native seam — MethodChannel pipe, KeyStore signer, environment spike
+- [ ] Chaquopy device spike → Path A / B architecture decision
+- [ ] On-device OCR — ML Kit v2 + IndicPhotoOCR via the Chaquopy Java bridge
+- [ ] Real-photo golden report — measured rule precision / recall
+- [ ] YOLO26n provider for PDP / BOP / PRICE ROIs
+- [ ] Flutter field app — scanner, report, dossier signing, sync
+
+---
+
+<div align="center">
+
+**Made with** 🐍 Python · 🔷 OpenCV · 📄 ReportLab · ⚡ FastAPI · 🐦 Flutter · 🤖 Chaquopy · 🗄️ SQLite + PostGIS
+
+---
+
+**Smart India Hackathon 2025** · Problem **SIH26034**
+
+Ministry of Consumer Affairs, Food & Public Distribution — Department of Consumer Affairs / Legal Metrology Division
+
+⭐ *Star this repo if the evidence chain impressed you*
+
+</div>
+`````
+
+Three notes on it:
+
+1. **The Mermaid diagrams render natively on GitHub** — no setup needed. If you ever view the README outside GitHub (VS Code preview needs a plugin), they show as code; that's fine, GitHub is the audience.
+2. **Every number is real** — 323 tests, v1.2.4, v0.1.0, 0.45 ms from `bench_pipeline.py`, the demo excerpt matches your actual runs. I left out any license badge/section because no LICENSE file exists yet — add one (MIT is the usual choice for SIH repos) before the public round and I'll give you the badge line for it.
+3. The inner fences are triple-backtick inside my four-backtick wrapper — when you paste, make sure the file ends at the final `</div>` and the outer wrapper from my message doesn't come along.
