@@ -21,12 +21,13 @@ import uvicorn
 from fastapi import FastAPI
 
 from .. import paths
-from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
-    scan_request_from_dict
+from ..bridge.schema import (SCHEMA_VERSION, error_result, ping_payload,
+                            scan_request_from_dict,
+                            scan_tokens_request_from_dict)
 from ..context import BBox, OCRToken
 from ..persistence import queue_db
 from ..pipeline import attach_signature as pipeline_attach
-from ..pipeline import run_demo_scan, run_scan
+from ..pipeline import run_demo_scan, run_scan, run_scan_tokens
 from ..sync import client as sync_client
 
 HOST, PORT = "127.0.0.1", 8734
@@ -46,6 +47,15 @@ def scan(body: dict) -> dict:
     if err is not None:
         return error_result(err["code"], err["message"])
     return run_scan(request)
+
+
+@app.post("/scan/tokens")
+def scan_tokens(body: dict) -> dict:
+    """Contract v1.3: OCR tokens + optional platform blocks -> ScanResult."""
+    request, err = scan_tokens_request_from_dict(body)
+    if err is not None:
+        return error_result(err["code"], err["message"])
+    return run_scan_tokens(request)
 
 
 @app.post("/scan/demo")

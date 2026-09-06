@@ -291,10 +291,10 @@ NETRA/
 
 - [x] Deterministic 8-stage pipeline — every spec stage live on the deterministic engine
 - [x] Evidence chain: dossier → ECDSA P-256 → append-only ledger → sync → exports
-- [x] Bridge contract v1.2.4 + executable validators + machine-validated Flutter mocks
-- [x] CI green — 323 tests, Python 3.11 & 3.13
+- [x] Bridge contract v1.3.0 + executable validators + machine-validated Flutter mocks
+- [x] CI green — 335 tests, Python 3.11 & 3.13
 - [x] Android native seam — MethodChannel pipe, KeyStore signer, environment spike
-- [ ] Chaquopy device spike → Path A / B architecture decision
+- [x] Chaquopy device spike → Path B1 confirmed (numpy/reportlab/pillow on-device; s7 live)
 - [ ] On-device OCR — ML Kit v2 + IndicPhotoOCR via the Chaquopy Java bridge
 - [ ] Real-photo golden report — measured rule precision / recall
 - [ ] YOLO26n provider for PDP / BOP / PRICE ROIs
@@ -315,10 +315,3 @@ Ministry of Consumer Affairs, Food & Public Distribution — Department of Consu
 ⭐ *Star this repo if the evidence chain impressed you*
 
 </div>
-`````
-
-Three notes on it:
-
-1. **The Mermaid diagrams render natively on GitHub** — no setup needed. If you ever view the README outside GitHub (VS Code preview needs a plugin), they show as code; that's fine, GitHub is the audience.
-2. **Every number is real** — 323 tests, v1.2.4, v0.1.0, 0.45 ms from `bench_pipeline.py`, the demo excerpt matches your actual runs. I left out any license badge/section because no LICENSE file exists yet — add one (MIT is the usual choice for SIH repos) before the public round and I'll give you the badge line for it.
-3. The inner fences are triple-backtick inside my four-backtick wrapper — when you paste, make sure the file ends at the final `</div>` and the outer wrapper from my message doesn't come along.

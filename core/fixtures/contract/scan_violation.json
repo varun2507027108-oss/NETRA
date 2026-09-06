@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "scan_id": "199e6b5638114e8b9b3f4cb757652790",
+  "scan_id": "25a5e383c9a2465097bc0b9f14448f27",
   "verdict": "VIOLATION",
-  "captured_utc": "2026-09-05T16:38:11.059Z",
-  "completed_utc": "2026-09-05T16:38:11.063Z",
-  "total_ms": 3.62,
+  "captured_utc": "2026-09-06T06:05:50.139Z",
+  "completed_utc": "2026-09-06T06:05:50.140Z",
+  "total_ms": 0.68,
   "timings_ms": {
     "s4_ocr": 0.0,
-    "s5_field_extract": 2.47,
-    "s6_metrology": 1.14
+    "s5_field_extract": 0.44,
+    "s6_metrology": 0.24
   },
   "quality": {
     "ok": null,

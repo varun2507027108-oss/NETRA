@@ -26,7 +26,8 @@ from functools import lru_cache
 from typing import Any, Optional
 
 from .. import __version__ as CORE_VERSION
-from ..context import CheckStatus, PipelineContext, Verdict
+from ..context import (BBox, CheckStatus, GlyphBox, OCRToken,
+                       PipelineContext, Verdict)
 from ..rules.citations import citation
 
 SCHEMA_VERSION = 1
@@ -218,6 +219,184 @@ def _parse_options(raw):
     return opts, None
 
 
+# ------------------------------------------------------- scan_tokens (v1.3)
+_TOKEN_ENGINES = ("mlkit", "tesseract", "indic", "bhashini")
+
+
+@dataclass(frozen=True)
+class ScanTokensRequest:
+    """Contract v1.3 scan_tokens request — the B1 device path input."""
+    tokens: tuple
+    quality: Optional[dict] = None
+    geometry: Optional[dict] = None
+    glyphs: tuple = ()
+    image_b64: Optional[str] = None
+    image_sha256: Optional[str] = None
+    shape_hint: str = ""
+    captured_utc: Optional[datetime] = None
+    gps: Optional[dict] = None
+    device: Optional[dict] = None
+    options: dict = field(default_factory=dict)
+
+
+def _bbox_ok(v) -> bool:
+    return (isinstance(v, list) and len(v) == 4
+            and all(isinstance(n, int) and not isinstance(n, bool) for n in v)
+            and v[0] >= 0 and v[1] >= 0 and v[2] > 0 and v[3] > 0)
+
+
+def scan_tokens_request_from_dict(d: Any) -> tuple:
+    """-> (ScanTokensRequest, None) or (None, error-dict). Mirrors the
+    validation discipline of scan_request_from_dict; quality / geometry /
+    glyphs / image are all OPTIONAL — the request degrades exactly as
+    far as it is incomplete (Dart-only builds send tokens + options)."""
+    if not isinstance(d, dict):
+        return None, _err("BAD_REQUEST", "request body must be a JSON object")
+    version = d.get("schema_version", SCHEMA_VERSION)
+    if version != SCHEMA_VERSION:
+        return None, _err("UNSUPPORTED_VERSION",
+                          f"bridge schema {SCHEMA_VERSION} expected, got {version!r}")
+
+    raw_tokens = d.get("tokens")
+    if not isinstance(raw_tokens, list) or not raw_tokens:
+        return None, _err("BAD_REQUEST",
+                          "'tokens' (non-empty list of OCR line tokens) is required")
+    tokens = []
+    for i, t in enumerate(raw_tokens):
+        if not isinstance(t, dict):
+            return None, _err("BAD_REQUEST", f"tokens[{i}] must be an object")
+        text = t.get("text")
+        if not isinstance(text, str) or not text:
+            return None, _err("BAD_REQUEST",
+                              f"tokens[{i}].text must be a non-empty string")
+        if not _bbox_ok(t.get("bbox")):
+            return None, _err("BAD_REQUEST",
+                              f"tokens[{i}].bbox must be [x, y, w, h] ints (w, h > 0)")
+        conf = t.get("conf", 1.0)
+        if (not isinstance(conf, (int, float)) or isinstance(conf, bool)
+                or not 0.0 <= float(conf) <= 1.0):
+            return None, _err("BAD_REQUEST", f"tokens[{i}].conf must be 0..1")
+        engine = t.get("engine", "mlkit")
+        if engine not in _TOKEN_ENGINES:
+            return None, _err("BAD_REQUEST",
+                              f"tokens[{i}].engine must be one of {_TOKEN_ENGINES}")
+        lang = t.get("lang", "en")
+        if not isinstance(lang, str):
+            return None, _err("BAD_REQUEST", f"tokens[{i}].lang must be a string")
+        tokens.append(OCRToken(text=text, bbox=BBox.from_list(t["bbox"]),
+                                conf=round(float(conf), 3),
+                                engine=engine, lang=lang))
+
+    q = d.get("quality")
+    if q is not None:
+        if not isinstance(q, dict):
+            return None, _err("BAD_REQUEST", "quality must be an object")
+        if q.get("ok") is not None and not isinstance(q.get("ok"), bool):
+            return None, _err("BAD_REQUEST", "quality.ok must be bool or null")
+        prompts = q.get("prompts", [])
+        if (not isinstance(prompts, list)
+                or not all(isinstance(p, str) for p in prompts)):
+            return None, _err("BAD_REQUEST",
+                              "quality.prompts must be a list of strings")
+        for k in ("laplacian_var", "glare_pct"):
+            v = q.get(k)
+            if v is not None and (not isinstance(v, (int, float))
+                                  or isinstance(v, bool)):
+                return None, _err("BAD_REQUEST",
+                                  f"quality.{k} must be number or null")
+        if q.get("glare_bbox") is not None and not _bbox_ok(q.get("glare_bbox")):
+            return None, _err("BAD_REQUEST",
+                              "quality.glare_bbox must be bbox or null")
+
+    g = d.get("geometry")
+    if g is not None:
+        if not isinstance(g, dict):
+            return None, _err("BAD_REQUEST", "geometry must be an object")
+        for k in ("shape", "shape_detected"):
+            v = g.get(k)
+            if v is not None and v not in SHAPE_HINTS:
+                return None, _err("BAD_REQUEST",
+                                  f"geometry.{k} must be a shape or null")
+        for k in ("mm_per_px", "pda_cm2"):
+            v = g.get(k)
+            if v is not None and (not isinstance(v, (int, float))
+                                  or isinstance(v, bool) or v <= 0):
+                return None, _err("BAD_REQUEST",
+                                  f"geometry.{k} must be a positive number or null")
+        if g.get("pda_method") is not None and \
+                not isinstance(g.get("pda_method"), str):
+            return None, _err("BAD_REQUEST",
+                              "geometry.pda_method must be a string or null")
+        rois = g.get("rois", [])
+        if not isinstance(rois, list):
+            return None, _err("BAD_REQUEST", "geometry.rois must be a list")
+        for i, r in enumerate(rois):
+            if (not isinstance(r, dict) or not isinstance(r.get("roi"), str)
+                    or not _bbox_ok(r.get("bbox"))):
+                return None, _err("BAD_REQUEST",
+                                  f"geometry.rois[{i}] must be {{roi, bbox, conf?}}")
+            c = r.get("conf", 0.0)
+            if (not isinstance(c, (int, float)) or isinstance(c, bool)
+                    or not 0.0 <= float(c) <= 1.0):
+                return None, _err("BAD_REQUEST",
+                                  f"geometry.rois[{i}].conf must be 0..1")
+
+    raw_glyphs = d.get("glyphs")
+    glyphs = []
+    if raw_glyphs is not None:
+        if not isinstance(raw_glyphs, list):
+            return None, _err("BAD_REQUEST", "glyphs must be a list")
+        for i, gl in enumerate(raw_glyphs):
+            if not isinstance(gl, dict):
+                return None, _err("BAD_REQUEST", f"glyphs[{i}] must be an object")
+            name = gl.get("glyph")
+            h, w = gl.get("height_mm"), gl.get("width_mm")
+            if (not isinstance(name, str) or not name
+                    or not isinstance(h, (int, float)) or isinstance(h, bool) or h <= 0
+                    or not isinstance(w, (int, float)) or isinstance(w, bool) or w < 0):
+                return None, _err("BAD_REQUEST",
+                                  f"glyphs[{i}] needs glyph, height_mm > 0, width_mm >= 0")
+            glyphs.append(GlyphBox(glyph=name, height_mm=float(h),
+                                   width_mm=float(w)))
+
+    image_b64 = d.get("image_b64")
+    if image_b64 is not None and not isinstance(image_b64, str):
+        return None, _err("BAD_REQUEST", "image_b64 must be a string")
+    image_sha = d.get("image_sha256")
+    if image_sha is not None and not isinstance(image_sha, str):
+        return None, _err("BAD_REQUEST", "image_sha256 must be a string")
+
+    shape_hint = d.get("shape_hint") or ""
+    if shape_hint and shape_hint not in SHAPE_HINTS:
+        return None, _err("BAD_REQUEST", f"shape_hint must be one of {SHAPE_HINTS}")
+
+    captured = d.get("captured_utc")
+    if captured:
+        try:
+            captured = datetime.fromisoformat(str(captured).replace("Z", "+00:00"))
+        except ValueError:
+            return None, _err("BAD_REQUEST", "captured_utc must be ISO-8601")
+    gps = d.get("gps")
+    if gps is not None and (not isinstance(gps, dict)
+                            or not isinstance(gps.get("lat"), (int, float))
+                            or not isinstance(gps.get("lon"), (int, float))):
+        return None, _err("BAD_REQUEST", "gps requires numeric 'lat' and 'lon'")
+    device = d.get("device")
+    if device is not None and not isinstance(device, dict):
+        return None, _err("BAD_REQUEST", "device must be an object")
+    raw_opts = d.get("options")
+    if raw_opts is not None and not isinstance(raw_opts, dict):
+        return None, _err("BAD_REQUEST", "options must be an object")
+    options, opt_err = _parse_options(raw_opts)
+    if opt_err is not None:
+        return None, opt_err
+
+    return ScanTokensRequest(
+        tokens=tuple(tokens), quality=q, geometry=g, glyphs=tuple(glyphs),
+        image_b64=image_b64, image_sha256=image_sha, shape_hint=shape_hint,
+        captured_utc=captured, gps=gps, device=device, options=options), None
+
+
 # --------------------------------------------------------------- serialization
 def _iso_z(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat(timespec="milliseconds") \
@@ -241,7 +420,7 @@ def _bbox_out(b) -> Optional[list]:
     return b.to_list() if b is not None else None
 
 
-def _meta_out(request: Optional[ScanRequest], ctx: Optional[PipelineContext] = None) -> Optional[dict]:
+def _meta_out(request: Optional[ScanRequest | ScanTokensRequest], ctx: Optional[PipelineContext] = None) -> Optional[dict]:
     if request is not None:
         return {"gps": request.gps, "device": request.device,
                 "options": request.options}
@@ -257,13 +436,13 @@ def _empty_quality() -> dict:
             "prompts": [], "glare_bbox": None}
 
 
-def result_from_context(ctx: PipelineContext, *, request: Optional[ScanRequest] = None,
+def result_from_context(ctx: PipelineContext, *, request: Optional[ScanRequest | ScanTokensRequest] = None,
                         error: Optional[dict] = None) -> dict:
     """Serialize a finished PipelineContext into contract v1 JSON."""
     s1_ok = {s.stage: s.ok for s in ctx.stages}.get("s1_frame_quality")
     q = ctx.quality or {}
     quality = {
-        "ok": s1_ok,
+        "ok": s1_ok if s1_ok is not None else q.get("ok"),
         "laplacian_var": q.get("laplacian_var"),
         "glare_pct": q.get("glare_pct"),
         "prompts": list(q.get("prompts", [])),

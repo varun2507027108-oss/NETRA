@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "scan_id": "e267ce5fc5e340c183379272c115f598",
+  "scan_id": "392ece6e71244a3c990fa17442314853",
   "verdict": "RETRY",
-  "captured_utc": "2026-09-05T16:38:11.357Z",
-  "completed_utc": "2026-09-05T16:38:11.380Z",
-  "total_ms": 19.63,
+  "captured_utc": "2026-09-06T06:05:50.266Z",
+  "completed_utc": "2026-09-06T06:05:50.271Z",
+  "total_ms": 4.19,
   "timings_ms": {
-    "s1_frame_quality": 19.63
+    "s1_frame_quality": 4.19
   },
   "quality": {
     "ok": false,

@@ -1,57 +1,82 @@
-"""NETRA pipeline orchestrator.
+"""NETRA pipeline orchestrator — two scan paths, one contract.
 
-run_scan: stages in statutory order. Unimplemented stages are SKIPPED
-(ping advertises them); gate stages (s1, s3) short-circuit to RETRY with
-inspector prompts; every stage call is wrapped — a raised exception
-becomes an in-band INTERNAL error. Stage 2 crops the frame to the
-package (+ adjacent fiducial); Stage 3's corrected frame feeds Stage 4;
-after Stage 5, evidence bboxes are remapped (s3) and offset (s2 crop)
-back to submitted-image pixel space (contract section 5). COMPLETED
-scans (PASS/VIOLATION) are recorded in the SQLite evidence ledger
-(ledger failure never destroys a completed audit).
+run_scan        (image path, full-stack / desktop): stages in statutory
+                order. Vision stages (s1/s2/s3) load LAZILY — on a B1
+                device build (no cv2) the method returns an in-band
+                STAGE_FAILURE envelope pointing at scan_tokens instead
+                of crashing the channel.
 
-attach_signature: the contract section 8 handshake — verifies the
-platform's ECDSA P-256 signature over the dossier hash and flips the
-ledger row to signed.
+run_scan_tokens (B1 device path, contract v1.3): the platform supplies
+                OCR line tokens (ML Kit) plus optional quality, geometry,
+                metric scale and glyph measurements; Python runs
+                s4(injection) -> s5 -> s6 -> s7 over them and returns the
+                identical 17-key ScanResult with the same ledger, dossier
+                and signing semantics. No vision dependency is required
+                anywhere in this path.
 
-run_demo_scan: real s4 (dev injection) -> s5 -> s6, plus optionally s7 +
-ledger recording when dossier=True (mirrors run_scan behaviour; the
-default demo writes NOTHING to disk).
+attach_signature: contract section 8 handshake.
+
+run_demo_scan: desktop demo (dev injection + synthetic frame); cv2 is
+                required at CALL time, never at import time.
 """
 from __future__ import annotations
 
 import base64
 import binascii
 import hashlib
+import importlib
+import io
 import sys
 from dataclasses import replace
-from typing import Optional
-
-import cv2
-import numpy as np
 
 from .bridge.schema import (SCHEMA_VERSION, ScanRequest, error_result,
                             result_from_context)
-from .context import BBox, OCRToken, PipelineContext, Verdict
+from .context import BBox, OCRToken, PipelineContext
 from .dossier import crypto
 from .persistence import queue_db
-from .stages import (s1_frame_quality, s2_geometry_detect, s3_calibration,
-                     s4_ocr, s5_field_extract, s6_metrology, s7_dossier)
+from .stages import s4_ocr, s5_field_extract, s6_metrology, s7_dossier
 
-# stage name -> runnable | None. Each None disappears as its stage lands.
-_STAGES_IN_ORDER = (
-    ("s1_frame_quality", s1_frame_quality),
-    ("s2_geometry_detect", s2_geometry_detect),
-    ("s3_calibration", s3_calibration),
-    ("s4_ocr", s4_ocr),
-    ("s5_field_extract", s5_field_extract),
-    ("s6_metrology", s6_metrology),
-    ("s7_dossier", s7_dossier),
-)
+_VISION_STAGE_NAMES = ("s1_frame_quality", "s2_geometry_detect",
+                       "s3_calibration")
+_VISION_CACHE: dict = {}
+
+
+def _load_vision_stages() -> dict:
+    """Import s1/s2/s3 lazily: absent vision deps (B1 device build) yield
+    None instead of an ImportError at module-import time."""
+    for name in _VISION_STAGE_NAMES:
+        if name not in _VISION_CACHE:
+            try:
+                _VISION_CACHE[name] = importlib.import_module(
+                    f"netra_core.stages.{name}")
+            except Exception:
+                _VISION_CACHE[name] = None
+    return _VISION_CACHE
+
+
+def __getattr__(name: str):
+    """PEP 562 — _STAGES_IN_ORDER resolves lazily (then caches) so
+    importing this module never requires cv2. Tests may patch the module
+    attribute directly; this fires only while it is unset."""
+    if name == "_STAGES_IN_ORDER":
+        v = _load_vision_stages()
+        order = (("s1_frame_quality", v["s1_frame_quality"]),
+                 ("s2_geometry_detect", v["s2_geometry_detect"]),
+                 ("s3_calibration", v["s3_calibration"]),
+                 ("s4_ocr", s4_ocr),
+                 ("s5_field_extract", s5_field_extract),
+                 ("s6_metrology", s6_metrology),
+                 ("s7_dossier", s7_dossier))
+        globals()["_STAGES_IN_ORDER"] = order
+        return order
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _decode(image_b64: str) -> tuple:
-    """-> (raw_bytes, BGR frame). Raises ValueError on any failure."""
+    """-> (raw_bytes, BGR frame). Raises ValueError on any failure.
+    cv2/numpy import lazily (B1 device builds have neither)."""
+    import cv2
+    import numpy as np
     try:
         raw = base64.b64decode(image_b64, validate=True)
     except (binascii.Error, ValueError) as e:
@@ -62,7 +87,7 @@ def _decode(image_b64: str) -> tuple:
     return raw, img
 
 
-def decode_image(image_b64: str) -> np.ndarray:
+def decode_image(image_b64: str):
     """Public wrapper for future stages / tests."""
     return _decode(image_b64)[1]
 
@@ -82,8 +107,7 @@ def _remap_evidence(ctx: PipelineContext, calib) -> None:
 
 def _offset_evidence(ctx: PipelineContext, origin: tuple) -> None:
     """Stage 2 cropped the frame; shift evidence bboxes back to
-    submitted-image pixel space (contract section 5). Composes after
-    _remap_evidence (s3 maps into crop space; this adds the crop origin)."""
+    submitted-image pixel space (contract section 5)."""
     if origin == (0, 0):
         return
     dx, dy = origin
@@ -99,8 +123,7 @@ def _offset_evidence(ctx: PipelineContext, origin: tuple) -> None:
 
 def _record_result(ctx: PipelineContext, result: dict) -> None:
     """Ledger write for COMPLETED scans. A ledger failure must never
-    destroy a completed audit result — it is swallowed (the queue is
-    WAL-mode SQLite; failures here are rare and non-statutory)."""
+    destroy a completed audit result — it is swallowed."""
     if result["verdict"] not in ("PASS", "VIOLATION"):
         return
     try:
@@ -115,7 +138,7 @@ def _record_result(ctx: PipelineContext, result: dict) -> None:
 
 
 def run_scan(request: ScanRequest) -> dict:
-    """The one entrypoint behind both transports. Always contract JSON."""
+    """Image path (full-stack builds). Always contract JSON."""
     ctx = PipelineContext(
         shape_hint=request.shape_hint,
         meta={"gps": request.gps, "device": request.device,
@@ -124,9 +147,18 @@ def run_scan(request: ScanRequest) -> dict:
     if request.captured_utc:
         ctx.captured_utc = request.captured_utc
 
+    stages = getattr(sys.modules[__name__], "_STAGES_IN_ORDER")
+    missing = [n for n, m in stages if m is None]
+    if missing:
+        return error_result(
+            "STAGE_FAILURE",
+            "vision stack not installed on this build ("
+            f"{', '.join(missing)}) — use the scan_tokens path (B1)",
+            stage=missing[0], request=request)
+
     try:
         raw, img = _decode(request.image_b64)
-    except ValueError as e:
+    except (ValueError, ImportError) as e:
         return error_result("DECODE_ERROR", str(e), request=request)
 
     ctx.image_sha256 = hashlib.sha256(raw).hexdigest()
@@ -138,9 +170,7 @@ def run_scan(request: ScanRequest) -> dict:
     calib = None
     crop_origin = (0, 0)
     source_img = img                  # evidence crops + hash chain source
-    for name, module in _STAGES_IN_ORDER:
-        if module is None:
-            continue                  # not yet implemented: ping says so
+    for name, module in stages:
         try:
             if name == "s1_frame_quality":
                 report = module.run(ctx, img)
@@ -175,6 +205,82 @@ def run_scan(request: ScanRequest) -> dict:
                                 f"{name}: {type(e).__name__}: {e}",
                                 stage=name, scan_id=ctx.image_id,
                                 request=request)
+
+    result = result_from_context(ctx, request=request)
+    _record_result(ctx, result)
+    return result
+
+
+# ------------------------------------------------------ B1 device path
+def run_scan_tokens(request) -> dict:
+    """Contract v1.3 scan_tokens: OCR line tokens + optional quality /
+    geometry / glyphs / image from the platform, evaluated by the full
+    statutory engine. Identical 17-key ScanResult; identical ledger,
+    dossier and signing semantics; zero vision dependencies."""
+    ctx = PipelineContext(
+        shape_hint=request.shape_hint,
+        meta={"gps": request.gps, "device": request.device,
+              "options": request.options},
+    )
+    if request.captured_utc:
+        ctx.captured_utc = request.captured_utc
+
+    source_frame = None
+    if request.image_b64:
+        try:
+            raw = base64.b64decode(request.image_b64, validate=True)
+        except (binascii.Error, ValueError) as e:
+            return error_result("DECODE_ERROR", f"invalid base64 image: {e}",
+                                request=request)
+        try:
+            from PIL import Image
+            with Image.open(io.BytesIO(raw)) as im:
+                source_frame = im.convert("RGB")
+        except Exception as e:
+            return error_result("DECODE_ERROR",
+                                f"undecodable image: {e}", request=request)
+        ctx.image_sha256 = hashlib.sha256(raw).hexdigest()
+        if request.image_sha256 and \
+                request.image_sha256.lower() != ctx.image_sha256:
+            return error_result(
+                "BAD_REQUEST",
+                "image_sha256 mismatch — image altered in transit",
+                request=request)
+
+    q = dict(request.quality or {})
+    ctx.quality = {
+        "ok": q.get("ok"),
+        "laplacian_var": q.get("laplacian_var"),
+        "glare_pct": q.get("glare_pct"),
+        "prompts": list(q.get("prompts") or []),
+        "glare_bbox": q.get("glare_bbox"),
+    }
+    if q.get("ok") is False:
+        # mirror the s1 gate: rejected frame -> RETRY with guidance
+        if not ctx.quality["prompts"]:
+            ctx.quality["prompts"].append(
+                "Frame rejected by the device quality gate — steady the "
+                "camera and rescan")
+        return result_from_context(ctx, request=request)
+
+    g = dict(request.geometry or {})
+    if not ctx.shape_hint and g.get("shape"):
+        ctx.shape_hint = g["shape"]
+    ctx.mm_per_px = g.get("mm_per_px")
+    ctx.pda_cm2 = g.get("pda_cm2")
+    ctx.pda_method = str(g.get("pda_method") or "")
+    ctx.shape_detected = str(g.get("shape_detected") or "")
+    ctx.rois = [{"roi": r.get("roi"),
+                 "bbox": BBox.from_list(r["bbox"]),
+                 "conf": float(r.get("conf") or 0.0)}
+                for r in (g.get("rois") or [])]
+    ctx.glyphs = list(request.glyphs)
+
+    s4_ocr.run(ctx, tokens=list(request.tokens))
+    s5_field_extract.run(ctx)
+    s6_metrology.run(ctx, options=request.options)
+    s7_dossier.run(ctx, source_frame=source_frame,
+                   options=request.options)
 
     result = result_from_context(ctx, request=request)
     _record_result(ctx, result)
@@ -259,9 +365,11 @@ def _tokens_from_label(label: dict) -> list:
     return out
 
 
-def _demo_frame(tokens) -> np.ndarray:
-    """Render the demo tokens onto a synthetic label image (evidence crops
-    for the demo dossier). ASCII-safe: the rupee sign draws as 'Rs'."""
+def _demo_frame(tokens):
+    """Render demo tokens onto a synthetic label image. ASCII-safe: the
+    rupee sign draws as 'Rs'. Desktop-only (needs cv2 at call time)."""
+    import cv2
+    import numpy as np
     frame = np.full((800, 800, 3), 252, np.uint8)
     for t in tokens:
         x, y, w, h = t.bbox.to_list()
@@ -275,13 +383,7 @@ def _demo_frame(tokens) -> np.ndarray:
 
 def run_demo_scan(tokens=None, label=None, options=None,
                   dossier: bool = False) -> dict:
-    """Full statutory engine over injected OCR tokens.
-
-    Default (dossier=False): pure computation, writes NOTHING to disk.
-    dossier=True: mirrors run_scan — s7 generates the PDF over a synthetic
-    frame, the scan lands in the evidence ledger, and the result carries
-    the dossier object ready for the signing handshake.
-    """
+    """Full statutory engine over injected OCR tokens (desktop demo)."""
     default_demo = tokens is None and label is None
     if tokens is None:
         tokens = _tokens_from_label(label) if label else list(_DEMO_TOKENS)
@@ -298,6 +400,7 @@ def run_demo_scan(tokens=None, label=None, options=None,
     s6_metrology.run(ctx, options=options)
 
     if dossier:
+        import cv2
         frame = _demo_frame(tokens)
         ok, buf = cv2.imencode(".jpg", frame,
                                [cv2.IMWRITE_JPEG_QUALITY, 92])
@@ -305,8 +408,7 @@ def run_demo_scan(tokens=None, label=None, options=None,
         ctx.meta = {"device": {"model": "NETRA desktop demo",
                                "os": sys.platform},
                     "gps": {"lat": 19.0760, "lon": 72.8777,
-                            "source": "demo"},
-                    "options": options or {}}
+                            "source": "demo"}}
         s7_dossier.run(ctx, source_frame=frame, options=options)
 
     result = result_from_context(ctx)

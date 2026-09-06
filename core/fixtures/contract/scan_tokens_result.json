@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "scan_id": "8d781ae2708840619805b2b366a82262",
+  "scan_id": "fc158eb611314187bba70098e5a7828f",
   "verdict": "VIOLATION",
-  "captured_utc": "2026-09-06T06:05:50.141Z",
-  "completed_utc": "2026-09-06T06:05:50.248Z",
-  "total_ms": 88.63,
+  "captured_utc": "2026-09-06T06:05:50.273Z",
+  "completed_utc": "2026-09-06T06:05:50.308Z",
+  "total_ms": 35.01,
   "timings_ms": {
     "s4_ocr": 0.0,
-    "s5_field_extract": 0.36,
-    "s6_metrology": 0.16,
-    "s7_dossier": 88.11
+    "s5_field_extract": 0.38,
+    "s6_metrology": 0.2,
+    "s7_dossier": 34.44
   },
   "quality": {
     "ok": null,
@@ -445,24 +445,22 @@
     "na": 0
   },
   "dossier": {
-    "sha256": "c1f727a8929b9c94d54457489999834180142bec0987fdccc37d4ac18510b9df",
-    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmp85awzs8p\\netra\\dossiers\\netra_8d781ae2708840619805b2b366a82262.pdf",
+    "sha256": "2aacc81837e0e8909af73654fce0c3631b9e665b1cfe48a2f9b521262bf59002",
+    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmp85awzs8p\\netra\\dossiers\\netra_fc158eb611314187bba70098e5a7828f.pdf",
     "signed": false,
     "signature": null,
     "cert_pem": null,
     "sig_status": "pending"
   },
   "meta": {
-    "gps": {
-      "lat": 19.076,
-      "lon": 72.8777,
-      "source": "demo"
-    },
-    "device": {
-      "model": "NETRA desktop demo",
-      "os": "win32"
-    },
-    "options": null
+    "gps": null,
+    "device": null,
+    "options": {
+      "institutional": false,
+      "fast_food": false,
+      "commodity": "",
+      "blown": false
+    }
   },
   "error": null
 }

@@ -17,6 +17,8 @@ Honesty note on the ~20 ms budget: the statutory record (A-C, E-F)
 builds in ~20 ms; evidence image pages (D) dominate real build time.
 Dossier build runs AFTER the verdict is already determined — it is off
 the statutory critical path.
+
+Evidence rendering is PIL-only (no cv2) so dossiers render on B1 device builds, where pillow installs under Chaquopy and cv2 does not.
 """
 from __future__ import annotations
 
@@ -25,13 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    import cv2
-    import numpy as np          # noqa: F401  (kept for tier parity)
-    HAVE_CV2 = True
-except Exception:               # on-device: vision stack not installed
-    HAVE_CV2 = False
-
-try:
+    from PIL import Image as PILImage, ImageDraw as PILDraw
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -42,6 +38,7 @@ try:
     HAVE_REPORTLAB = True
 except Exception:                                   # pragma: no cover
     HAVE_REPORTLAB = False
+    PILImage = PILDraw = None
 
 from .. import __version__
 from ..context import CheckStatus, PipelineContext
@@ -69,34 +66,53 @@ def _iso(dt) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S") + " UTC"
 
 
+def _coerce_pil(frame):
+    """ndarray(BGR) | PIL.Image | None -> PIL RGB image | None.
+
+    The ndarray case flips channels with a pure numpy slice — no cv2
+    anywhere in the dossier path (B1: pillow yes, cv2 no)."""
+    if frame is None:
+        return None
+    if isinstance(frame, PILImage.Image):
+        return frame.convert("RGB")
+    try:
+        import numpy as np
+        if isinstance(frame, np.ndarray):
+            if frame.ndim == 3 and frame.shape[2] == 3:
+                return PILImage.fromarray(frame[:, :, ::-1].copy())
+            if frame.ndim == 2:
+                return PILImage.fromarray(frame).convert("RGB")
+    except ImportError:
+        pass
+    return None
+
+
 def _fit(img, max_side=_FIT_MAX_SIDE):
-    h, w = img.shape[:2]
-    s = max_side / float(max(h, w))
+    w, h = img.size
+    s = max_side / float(max(w, h))
     if s < 1.0:
-        img = cv2.resize(img, (int(w * s), int(h * s)),
-                         interpolation=cv2.INTER_AREA)
+        img = img.resize((max(1, int(w * s)), max(1, int(h * s))),
+                         PILImage.LANCZOS)
     return img
 
 
-def _crop(frame, bbox, margin=0.15):
-    h, w = frame.shape[:2]
+def _crop(img, bbox, margin=0.15):
+    w, h = img.size
     dx, dy = int(bbox.w * margin), int(bbox.h * margin)
-    x0, y0 = max(0, bbox.x - dx), max(0, bbox.y - dy)
-    x1 = min(w, bbox.x + bbox.w + dx)
-    y1 = min(h, bbox.y + bbox.h + dy)
-    if x1 - x0 < 8 or y1 - y0 < 8:
+    box = (max(0, bbox.x - dx), max(0, bbox.y - dy),
+           min(w, bbox.x + bbox.w + dx), min(h, bbox.y + bbox.h + dy))
+    if box[2] - box[0] < 8 or box[3] - box[1] < 8:
         return None
-    return frame[y0:y1, x0:x1]
+    return img.crop(box)
 
 
-def _rl_image(bgr, width_mm):
-    if bgr is None or bgr.size == 0:
+def _rl_image(pil, width_mm):
+    if pil is None or pil.size[0] == 0:
         return None
-    ok, buf = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 88])
-    if not ok:
-        return None
-    h, w = bgr.shape[:2]
-    return RLImage(io.BytesIO(buf.tobytes()), width=width_mm * mm,
+    buf = io.BytesIO()
+    pil.save(buf, "JPEG", quality=88)
+    w, h = pil.size
+    return RLImage(io.BytesIO(buf.getvalue()), width=width_mm * mm,
                    height=width_mm * mm * h / float(w))
 
 
@@ -276,22 +292,20 @@ def build_dossier_pdf(ctx: PipelineContext, source_frame=None, out_path=None):
 
     # ---- Part D: visual evidence ----------------------------------------------
     story.append(Paragraph("Part D - Visual evidence", h2))
-    if (source_frame is not None and source_frame.size and HAVE_CV2):
+    pil = _coerce_pil(source_frame)
+    if pil is not None:
         failed = [c for c in ctx.checks
                   if c.status is CheckStatus.FAIL and c.evidence is not None]
-        disp = _fit(source_frame)
+        disp = _fit(pil)
         if failed:
-            h0, w0 = source_frame.shape[:2]
-            h1, w1 = disp.shape[:2]
-            sx, sy = w1 / float(w0), h1 / float(h0)
-            boxed = disp.copy()
+            sx = disp.width / float(pil.width)
+            sy = disp.height / float(pil.height)
+            draw = PILDraw.Draw(disp)
             for c in failed:
                 b = c.evidence
-                cv2.rectangle(boxed,
-                              (int(b.x * sx), int(b.y * sy)),
-                              (int((b.x + b.w) * sx), int((b.y + b.h) * sy)),
-                              (0, 0, 210), max(2, int(2 * sx)))
-            disp = boxed
+                draw.rectangle(
+                    [b.x * sx, b.y * sy, (b.x + b.w) * sx, (b.y + b.h) * sy],
+                    outline=(200, 0, 0), width=max(2, int(2 * sx)))
         img = _rl_image(disp, 150.0)
         if img is not None:
             story.append(img)
@@ -300,7 +314,7 @@ def build_dossier_pdf(ctx: PipelineContext, source_frame=None, out_path=None):
         if failed:
             story.append(Spacer(1, 4 * mm))
             for c in failed[:_MAX_EVIDENCE_CROPS]:
-                crop_img = _crop(source_frame, c.evidence)
+                crop_img = _crop(pil, c.evidence)
                 rl = _rl_image(crop_img, 62.0) if crop_img is not None else None
                 if rl is not None:
                     story.append(rl)
@@ -310,8 +324,9 @@ def build_dossier_pdf(ctx: PipelineContext, source_frame=None, out_path=None):
         else:
             story.append(_p("No failing declarations to crop.", small))
     else:
-        story.append(_p("Source frame unavailable to this build "
-                        "(vision stack not installed on this device).", small))
+        story.append(_p("Source frame not available to this scan "
+                        "(demo / ledger replay path, or no image supplied "
+                        "on the device scan_tokens path).", small))
 
     # ---- Part E: integrity chain -----------------------------------------------
     story.append(Paragraph("Part E - Evidence integrity chain", h2))

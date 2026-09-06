@@ -385,8 +385,56 @@ def validate_queue_status(s: Any) -> list:
     return errs
 
 
+# ------------------------------------------------- scan_tokens request (1.3)
+def validate_scan_tokens_request(d: Any) -> list:
+    errs: list = []
+    if not isinstance(d, dict):
+        return ["scan_tokens request must be a JSON object"]
+    if d.get("schema_version", 1) != SCHEMA_VERSION:
+        errs.append(f"schema_version: expected {SCHEMA_VERSION}")
+    toks = d.get("tokens")
+    if not isinstance(toks, list) or not toks:
+        errs.append("tokens: non-empty list required")
+    else:
+        for i, t in enumerate(toks):
+            if not isinstance(t, dict):
+                errs.append(f"tokens[{i}]: must be an object")
+                continue
+            if not isinstance(t.get("text"), str) or not t.get("text"):
+                errs.append(f"tokens[{i}].text: non-empty string required")
+            if not _bbox(t.get("bbox")):
+                errs.append(f"tokens[{i}].bbox: [x, y, w, h] ints required")
+            c = t.get("conf", 1.0)
+            if not _num(c) or not 0.0 <= c <= 1.0:
+                errs.append(f"tokens[{i}].conf: must be 0..1")
+            if t.get("engine", "mlkit") not in OCR_ENGINES:
+                errs.append(f"tokens[{i}].engine: not in {OCR_ENGINES}")
+    if d.get("quality") is not None and not isinstance(d.get("quality"), dict):
+        errs.append("quality: must be an object")
+    g = d.get("geometry")
+    if g is not None and not isinstance(g, dict):
+        errs.append("geometry: must be an object")
+    elif isinstance(g, dict):
+        for k in ("shape", "shape_detected"):
+            if g.get(k) is not None and g[k] not in SHAPES:
+                errs.append(f"geometry.{k}: not a shape")
+        for k in ("mm_per_px", "pda_cm2"):
+            v = g.get(k)
+            if v is not None and (not _num(v) or v <= 0):
+                errs.append(f"geometry.{k}: positive number or null")
+    if d.get("glyphs") is not None and not isinstance(d.get("glyphs"), list):
+        errs.append("glyphs: must be a list")
+    for k in ("image_b64", "image_sha256"):
+        if d.get(k) is not None and not isinstance(d[k], str):
+            errs.append(f"{k}: must be a string or null")
+    if d.get("shape_hint") and d["shape_hint"] not in SHAPES:
+        errs.append("shape_hint: not a shape")
+    return errs
+
+
 KINDS = {
     "scan": validate_scan_result,
+    "scan_tokens_request": validate_scan_tokens_request,
     "ping": validate_ping,
     "sync": validate_sync_summary,
     "sig": validate_sig_response,

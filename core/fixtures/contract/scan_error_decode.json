@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scan_id": "",
   "verdict": "RETRY",
-  "captured_utc": "2026-09-05T16:38:11.383Z",
-  "completed_utc": "2026-09-05T16:38:11.383Z",
+  "captured_utc": "2026-09-06T06:05:50.272Z",
+  "completed_utc": "2026-09-06T06:05:50.272Z",
   "total_ms": 0.0,
   "timings_ms": {},
   "quality": {

@@ -1,0 +1,179 @@
+{
+  "tokens": [
+    {
+      "text": "Instant Masala Noodles",
+      "bbox": [
+        200,
+        60,
+        420,
+        60
+      ],
+      "conf": 0.98,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Net Quantity:",
+      "bbox": [
+        120,
+        340,
+        150,
+        30
+      ],
+      "conf": 0.96,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "70 gms",
+      "bbox": [
+        280,
+        340,
+        90,
+        30
+      ],
+      "conf": 0.97,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "MRP",
+      "bbox": [
+        120,
+        388,
+        60,
+        40
+      ],
+      "conf": 0.97,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "\u20b9 14.00",
+      "bbox": [
+        185,
+        388,
+        110,
+        40
+      ],
+      "conf": 0.98,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Unit Sale Price",
+      "bbox": [
+        120,
+        432,
+        160,
+        30
+      ],
+      "conf": 0.95,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "\u20b9 0.35 / g",
+      "bbox": [
+        285,
+        432,
+        130,
+        30
+      ],
+      "conf": 0.96,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "MFG",
+      "bbox": [
+        40,
+        560,
+        70,
+        26
+      ],
+      "conf": 0.97,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "08/2026",
+      "bbox": [
+        115,
+        560,
+        90,
+        26
+      ],
+      "conf": 0.98,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Imported by: Global Foods,",
+      "bbox": [
+        40,
+        600,
+        300,
+        26
+      ],
+      "conf": 0.95,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Mumbai 400001",
+      "bbox": [
+        40,
+        630,
+        180,
+        26
+      ],
+      "conf": 0.96,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Made in PRC",
+      "bbox": [
+        40,
+        700,
+        160,
+        26
+      ],
+      "conf": 0.96,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Consumer Care: Global Foods,",
+      "bbox": [
+        40,
+        740,
+        300,
+        26
+      ],
+      "conf": 0.94,
+      "engine": "mlkit",
+      "lang": "en"
+    },
+    {
+      "text": "Tel: 1800-123-4567",
+      "bbox": [
+        40,
+        770,
+        220,
+        26
+      ],
+      "conf": 0.95,
+      "engine": "mlkit",
+      "lang": "en"
+    }
+  ],
+  "geometry": {
+    "shape": "pouch",
+    "mm_per_px": 0.04,
+    "pda_cm2": 80.0,
+    "pda_method": "demo"
+  },
+  "options": {}
+}

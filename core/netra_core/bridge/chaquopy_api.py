@@ -15,8 +15,9 @@ from __future__ import annotations
 import json
 
 from .. import paths
-from ..bridge.schema import SCHEMA_VERSION, error_result, ping_payload, \
-    scan_request_from_dict
+from ..bridge.schema import (SCHEMA_VERSION, error_result, ping_payload,
+                            scan_request_from_dict,
+                            scan_tokens_request_from_dict)
 from ..persistence import queue_db
 from ..sync import client as sync_client
 
@@ -35,6 +36,18 @@ def scan(request_json: str) -> str:
     if err is not None:
         return json.dumps(error_result(err["code"], err["message"]))
     return json.dumps(run_scan(request))
+
+
+def scan_tokens(request_json: str) -> str:
+    from ..pipeline import run_scan_tokens      # lazy
+    try:
+        body = json.loads(request_json)
+    except (json.JSONDecodeError, TypeError) as e:
+        return json.dumps(error_result("BAD_REQUEST", f"invalid JSON: {e}"))
+    request, err = scan_tokens_request_from_dict(body)
+    if err is not None:
+        return json.dumps(error_result(err["code"], err["message"]))
+    return json.dumps(run_scan_tokens(request))
 
 
 def ping() -> str:

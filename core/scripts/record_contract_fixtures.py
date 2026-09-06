@@ -65,6 +65,28 @@ def record(out_dir: Path) -> dict:
         req, _ = scan_request_from_dict({"image_b64": "@@@"})
         w("scan_error_decode.json", run_scan(req), "scan")
 
+        from netra_core.bridge.schema import scan_tokens_request_from_dict
+        from netra_core.pipeline import _DEMO_TOKENS, run_scan_tokens
+        tokens_body = {
+            "tokens": [{"text": t.text, "bbox": t.bbox.to_list(),
+                        "conf": t.conf, "engine": t.engine, "lang": t.lang}
+                       for t in _DEMO_TOKENS],
+            "geometry": {"shape": "pouch", "mm_per_px": 0.04,
+                         "pda_cm2": 80.0, "pda_method": "demo"},
+            "options": {}}
+        assert not contract.validate_scan_tokens_request(tokens_body)
+        (out_dir / "scan_tokens_request.json").write_text(
+            json.dumps(tokens_body, indent=2), encoding="utf-8")
+        written["scan_tokens_request.json"] = "scan_tokens_request"
+        req, terr = scan_tokens_request_from_dict(tokens_body)
+        assert terr is None
+        tok_result = run_scan_tokens(req)
+        assert not contract.validate_scan_result(tok_result)
+        (out_dir / "scan_tokens_result.json").write_text(
+            json.dumps(tok_result, indent=2, ensure_ascii=False),
+            encoding="utf-8")
+        written["scan_tokens_result.json"] = "scan"
+
         class _OK:
             def post(self, url, payload, headers=None, timeout=10.0):
                 return 200, {"accepted": True, "duplicate": False}

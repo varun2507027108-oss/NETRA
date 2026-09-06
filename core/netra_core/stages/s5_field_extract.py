@@ -330,10 +330,12 @@ def run(ctx: PipelineContext) -> dict:
     ms = (time.perf_counter() - t0) * 1000.0
     # tokens decoded but nothing statutory recognized -> RETRY, and the
     # inspector must be told (captured the wrong face / not a label).
+    # A lone product name without any statutory declarations is just brand text.
     # Guard: when ctx.tokens is empty, s4 already spoke.
-    if not fields and ctx.tokens:
+    statutory = {k: v for k, v in fields.items() if k != FIELD_PRODUCT_NAME}
+    if not statutory and ctx.tokens:
         ctx.quality.setdefault("prompts", []).append(
             "No statutory declarations recognized — capture the "
             "principal display face")
-    ctx.add_stage("s5_field_extract", bool(fields), ms)
+    ctx.add_stage("s5_field_extract", bool(statutory), ms)
     return fields

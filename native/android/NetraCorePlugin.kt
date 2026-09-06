@@ -67,6 +67,8 @@ object NetraCorePlugin {
                 "ping" -> api.callAttr("ping").toString()
                 "configure" -> api.callAttr("configure", argJson(call)).toString()
                 "scan" -> api.callAttr("scan", argJson(call)).toString()
+                "scan_tokens" ->
+                    api.callAttr("scan_tokens", argJson(call)).toString()
                 "attach_signature" ->
                     api.callAttr("attach_signature", argJson(call)).toString()
                 "sync_now" -> api.callAttr("sync_now").toString()

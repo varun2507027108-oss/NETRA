@@ -131,4 +131,17 @@ expected; capabilities are probed before the vision decision. Phase 2
 - Python owns the law + dossier + verification: `s4` (token ingestion), `s5`, `s6`, `s7`.
 - Kotlin/Native owns pixels: camera, ML Kit (line tokens), and OpenCV Android SDK for `s1/s2/s3`.
 
+## Phase 3 — the B1 scan path (live)
+
+`scan_tokens` (contract v1.3) is implemented and tested: the platform
+sends ML Kit line tokens (+ optional quality/geometry/glyphs/image) and
+receives the standard ScanResult with on-device dossier + ledger. A
+Dart-only app (google_mlkit_text_recognition) can drive the full loop
+today; the Kotlin vision pre-pass (s1 Laplacian/glare, s3 ArUco +
+solvePnP via `org.opencv:opencv` on Maven Central — ArUco is in the
+main objdetect module since 4.7) is the enhancement that fills
+`quality` / `geometry`, and slots into the same request with no
+further contract changes.
+
+
 

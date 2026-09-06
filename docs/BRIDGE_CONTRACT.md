@@ -1,4 +1,4 @@
-# NETRA Bridge Contract — v1.2.4
+# NETRA Bridge Contract — v1.3.0
 
 Single source of truth for the JSON seam between `netra_core` (Python) and
 the Flutter client. Machine twin: `core/netra_core/bridge/schema.py`.
@@ -26,6 +26,7 @@ Only `NetraBridge` (Dart) knows a transport exists.
 | `ping` | Dart → core | `{}` | ping payload (§6) |
 | `configure` | Dart → core | `{data_dir?, sync_url?, sync_token?}` | `{data_dir?, dossier_dir?, queue_db?, sync_url?}` — call at startup; `sync_url` points at the institutional gateway (…/ingest is appended) |
 | `scan` | Dart → core | ScanRequest (§3) | ScanResult (§4) |
+| `scan_tokens` | Dart → core | ScanTokensRequest (§14) | ScanResult (§4) — B1 device path |
 | `attach_signature` | Dart → core | `{scan_id, signature, cert_pem}` (§8) | `{schema_version, scan_id, accepted, sig_status, verified, error?}` |
 | `sync_now` | Dart → core | `{}` | `{schema_version, attempted, synced, failed, deferred, remaining, offline, error?}` — drains the ledger; safe to call repeatedly |
 | `queue_status` | Dart → core | `{}` | `{schema_version, total, pending_sync, signed, dossiers}` |
@@ -209,7 +210,35 @@ Never throw across the bridge. Every failure is a full ScanResult with
 }
 ```
 
+## 14. scan_tokens — the B1 device path (v1.3)
+
+The platform supplies what it owns (camera, ML Kit OCR, quality,
+geometry); Python runs the statutory engine and returns the STANDARD
+ScanResult — 17 keys, same laws, same ledger / dossier / signing
+semantics. `run_scan` (image path) degrades to an in-band
+STAGE_FAILURE envelope on vision-less builds — use this method there.
+
+| Key | Type | Required | Notes |
+|---|---|---|---|
+| `schema_version` | int | no | defaults 1 |
+| `tokens` | array | **yes** | OCR LINE tokens `{text, bbox: [x,y,w,h], conf?, engine?, lang?}`; engine defaults `mlkit`; bboxes in SUBMITTED-image pixel space (§5) — the coordinates of the image whose bytes/sha you send |
+| `quality` | object? | no | `{ok?: bool\|null, laplacian_var?, glare_pct?, prompts?: string[], glare_bbox?}` — `ok: false` short-circuits to RETRY with prompts (the s1 gate, platform-side) |
+| `geometry` | object? | no | `{shape?, shape_detected?, mm_per_px?, pda_cm2?, pda_method?, rois?}` — supplying `mm_per_px` + `pda_cm2` activates Rule 7 font checks from token heights |
+| `glyphs` | array? | no | `[{glyph, height_mm, width_mm}]` → Rule 7(3) width law |
+| `image_b64` | string? | no | base64 JPEG/PNG — enables dossier evidence crops (Part D); PIL-decoded, no vision stack needed |
+| `image_sha256` | string? | no | verified when both present → `BAD_REQUEST` on mismatch |
+| `captured_utc` / `gps` / `device` / `options` | — | no | as §3 / §3.1 |
+
+Every platform block is optional and independently valuable: a
+Dart-only build (ML Kit plugin, no Kotlin vision) sends tokens +
+options and gets verdicts; Rule 7 reports NA until geometry arrives.
+
 ## 12. Changelog
+- **1.3.0** — scan_tokens: the B1 device path. Python side complete
+  (parser, pipeline, ledger, PIL-only dossier evidence, server +
+  chaquopy + channel methods, request validator, recorded fixtures).
+  run_scan degrades in-band on vision-less builds. Result surface
+  unchanged (17 keys).
 - **1.2.4** — Android native seam defined: channel carries JSON strings;
   `native/android/` (plugin, KeyStore signer, smoke spike) + integration
   doc with the Chaquopy decision tree. Signature payload regex pinned in
