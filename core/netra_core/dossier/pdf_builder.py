@@ -24,8 +24,12 @@ import io
 from datetime import datetime, timezone
 from pathlib import Path
 
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np          # noqa: F401  (kept for tier parity)
+    HAVE_CV2 = True
+except Exception:               # on-device: vision stack not installed
+    HAVE_CV2 = False
 
 try:
     from reportlab.lib import colors
@@ -272,7 +276,7 @@ def build_dossier_pdf(ctx: PipelineContext, source_frame=None, out_path=None):
 
     # ---- Part D: visual evidence ----------------------------------------------
     story.append(Paragraph("Part D - Visual evidence", h2))
-    if source_frame is not None and source_frame.size:
+    if (source_frame is not None and source_frame.size and HAVE_CV2):
         failed = [c for c in ctx.checks
                   if c.status is CheckStatus.FAIL and c.evidence is not None]
         disp = _fit(source_frame)
@@ -306,8 +310,8 @@ def build_dossier_pdf(ctx: PipelineContext, source_frame=None, out_path=None):
         else:
             story.append(_p("No failing declarations to crop.", small))
     else:
-        story.append(_p("Source frame not available to this scan "
-                        "(demo / ledger replay path).", small))
+        story.append(_p("Source frame unavailable to this build "
+                        "(vision stack not installed on this device).", small))
 
     # ---- Part E: integrity chain -----------------------------------------------
     story.append(Paragraph("Part E - Evidence integrity chain", h2))

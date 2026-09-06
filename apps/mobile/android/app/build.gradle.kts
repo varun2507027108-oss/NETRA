@@ -55,6 +55,10 @@ chaquopy {
         buildPython("C:/Users/varun/AppData/Local/Programs/Python/Python311/python.exe")
         pip {
             install("netra_core-0.1.0-py3-none-any.whl")
+            // ---- Phase 2 probes: ONE tier per rebuild ----
+            install("numpy")            // tier 1
+            install("reportlab")        // tier 2 — pulls pillow automatically
+            // install("opencv-python") // tier 3 — confirmed fails: no wheel for Android on PyPI/Chaquopy
         }
     }
 }

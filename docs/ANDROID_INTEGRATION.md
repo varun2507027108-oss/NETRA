@@ -118,3 +118,17 @@ returns an INTERNAL envelope (pipeline imports cv2 at module top) —
 expected; capabilities are probed before the vision decision. Phase 2
 (tiered pip installs) decides Path A-lean vs B1 — see the decision tree.
 
+### Phase 2 results — Tiered Pip Probes (arm64-v8a, Chaquopy 17.0.0)
+
+| Tier | Package | Result | Notes |
+|---|---|---|---|
+| Tier 1 | `numpy` | **PASS** | Chaquopy prebuilt `numpy-1.26.2` + `chaquopy-openblas` installed. `smoke` reported `"numpy": "ok"`. |
+| Tier 2 | `reportlab` (+ `pillow`) | **PASS** | `reportlab-5.0.1` + prebuilt `pillow-11.0.0` installed. `smoke` reported `"reportlab": "ok"`, `"PIL": "ok"`. `ping` lit up `"s7_dossier"` (`"dossier": true`). |
+| Tier 3 | `opencv-python` | **FAIL** | `No matching distribution found for opencv-python`. No Android wheels exist on PyPI or Chaquopy index. |
+
+**Verdict: Confirmed Path B1.**
+- `s7_dossier` is live on-device (text & layout PDF dossier generation operational with reportlab + pillow).
+- Python owns the law + dossier + verification: `s4` (token ingestion), `s5`, `s6`, `s7`.
+- Kotlin/Native owns pixels: camera, ML Kit (line tokens), and OpenCV Android SDK for `s1/s2/s3`.
+
+
