@@ -153,33 +153,44 @@ spike results. The B1 loop is closed on real hardware — remaining
 device work is OCR + camera wiring (Antigravity) and the Kotlin vision
 pre-pass.
 
-### Phase 4 — A/B verification (record corrected)
+### Phase 4 — A/B verification (mechanism: exact integer arithmetic)
 
-Method: identical JPEG bytes (`core/fixtures/synth/labels/S01_clean.jpg`,
-1600×1200, 200 px / 40 mm fiducial) evaluated on desktop Python reference
-(`core/scripts/ab_prepass.py`) vs on-device Kotlin prepass (`NetraVision.kt`,
-live on ARM64 device `6c75969f`, captured via logcat &
-`apps/mobile/screen_vision_prepass.png`).
+Identical JPEG bytes (synthetic S01; long side exactly 1600 px, so the
+device work-scale was 1.0 — no resampling on either side) → Python
+reference (scripts/ab_prepass.py) vs on-device Kotlin prepass (raw
+logcat capture, screenshot archived).
 
-#### Exact Machine Output on Device (via `adb logcat -s NetraVision`):
-```json
-{"quality":{"ok":true,"laplacian_var":793.2898908602531,"glare_pct":0.4268269230769231,"prompts":[]},"geometry":{"marker_detected":true,"mm_per_px":0.201005,"marker_id":0,"tilt_deg":0,"warnings":[]}}
-```
+Result: marker detected (id 0); gates agree; mm_per_px 0.201005 (6 dp)
+both sides; laplacian_var and glare_pct bit-identical.
 
-#### Comparison & Forensic Analysis
+Why bit-identical is GUARANTEED here, not lucky:
+- Laplacian of a uint8 image is integer-valued (exact 5-term sums).
+- Reflect-101 padding makes the image-wide Laplacian mean exactly 0
+  (second-difference telescoping) — confirmed empirically.
+- Variance then = sum(x^2)/N; sum(x^2) is an integer < 2^53, exact
+  under ANY summation order on ANY platform; one final correctly-
+  rounded division. Cross-platform bit-equality is arithmetic, not
+  chance. (This also empirically proves both JPEG decoders produced
+  identical pixels for this file.)
+- mm_per_px: Kotlin = homography mean-linear scale; Python reference =
+  side/sqrt(contourArea). Different estimators that agree to machine
+  epsilon only on this frontoparallel synthetic marker.
 
-| Field | Python Reference (`ab_prepass.py`) | Device Kotlin Pre-pass (`NetraVision.kt`) | Residual / Analysis |
-|---|---|---|---|
-| `marker_detected` | `true` | `true` | Exact match (ArucoDetector DICT_4X4_50) |
-| `marker_id` | `0` | `0` | Exact match |
-| `tilt_deg` | `0.0` | `0` | Exact match (frontoparallel synthetic frame) |
-| `quality.ok` | `true` | `true` | Exact match (both quality gates pass) |
-| `mm_per_px` | `0.201005` | `0.201005` | Matches to displayed precision (6 decimal places). **Explanation:** Kotlin uses the homography mean linear scale `s = (s1 + s2) / 2.0; mmPerPx = 1.0 / s / scale` (`0.2010050251256281`), while Python uses `side_mm / sqrt(contourArea)` (`0.20100502512562815`). On an unprojected, frontoparallel synthetic quad, the two formulas produce a relative difference of only ~2.5e-16, rounding to identical `0.201005` at 6 dp. |
-| `glare_pct` | `0.4268269230769231` | `0.4268269230769231` | Exact match. `8878 / (1600 * 1300)` pixels above threshold 242. Both run on identical uncompressed RGB bytes, yielding identical integer count `8878`. |
-| `laplacian_var` | `793.2898908602531` | `793.2898908602531` | Exact match to 16 significant digits. **Explanation:** In Python, `cv2.Laplacian(gray, cv2.CV_64F)` is evaluated with `numpy.var(ddof=0)`. In Kotlin, `Imgproc.Laplacian(gray, lap, CvType.CV_64F)` is evaluated with `Core.meanStdDev(lap, mean, stddev)` and squared. Both OpenCV C++ `meanStdDev` and NumPy's pairwise double summation on an array of identical float64 values hit the exact same intermediate sums and roundings on this frame (`mean = 0.0`, variance = 793.2898908602531). |
-| `warnings` | `[]` | `[]` | Exact match |
+Scope & Tier 2 prediction: this validates plumbing + math equivalence
+on integer pixels. Real captures resample (bilinear → non-integer
+pixels) and tilt, so expect: mm_per_px within ~1–2% (estimator
+difference), laplacian_var low-digit divergence, glare_pct within
+noise. Those bands are the Tier 2 acceptance criteria — agreement to
+16 digits on a real photo would be the anomaly.
 
-- **Scope & Limitations:** This synthetic frame test validates the **plumbing and math equivalence** (base64 decode → gray conversion → Laplacian filter → ArUco detection → homography decomposition → contract output). Because the marker is synthetic and frontoparallel, it does not validate physical camera distortion or real-world optical noise. Real-world optical accuracy is evaluated in Tier 2 below.
+| Field | Tier 2 expected | Pass if |
+|---|---|---|
+| `marker_detected`, `quality.ok`, `marker_id` | match | exact |
+| `mm_per_px` | the two estimators weight perspective differently | **within 1–2%** |
+| `laplacian_var` | low-digit divergence (float accumulation) | same side of 100; value within ~1% |
+| `glare_pct` | ±noise from decoder/threshold pixels | within ~0.1% |
+| `tilt_deg` (handheld, held roughly square) | small | < 10° |
+
 
 
 
