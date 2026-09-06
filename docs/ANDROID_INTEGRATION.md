@@ -153,5 +153,51 @@ spike results. The B1 loop is closed on real hardware — remaining
 device work is OCR + camera wiring (Antigravity) and the Kotlin vision
 pre-pass.
 
+## Phase 4 — the Kotlin vision pre-pass A/B proof (live on hardware)
+
+Native OpenCV vision pre-pass (`s1_frame_quality` + `s3_calibration`)
+implemented in `NetraVision.kt` (`org.opencv:opencv:4.9.0`), exposed over
+`vision_prepass` MethodChannel. Evaluated on real ARM hardware against the
+desktop Python reference (`core/scripts/ab_prepass.py`) using identical bytes
+from `core/fixtures/synth/labels/S01_clean.jpg` (200 px / 40 mm marker).
+
+### Comparison: Desktop Python Reference vs Real Android Device
+
+| Metric | Desktop Python Reference (`ab_prepass.py`) | Device Kotlin Pre-pass (`NetraVision.kt`) | Residual / Delta |
+|---|---|---|---|
+| `marker_detected` | `true` | `true` | **Match** |
+| `marker_id` | `0` | `0` | **Match** |
+| `mm_per_px` | `0.201005` | `0.201005` | **0.000% (Identical to 6 decimal places)** |
+| `tilt_deg` | `0.0` | `0` | **Match** |
+| `quality.ok` | `true` | `true` | **Match** |
+| `laplacian_var` | `793.2898908602531` | `793.2898908602531` | **0.000% (Bit-exact)** |
+| `glare_pct` | `0.4268269230769231` | `0.4268269230769231` | **0.000% (Bit-exact)** |
+| `quality.prompts` | `[]` | `[]` | **Match** |
+| `geometry.warnings` | `[]` | `[]` | **Match** |
+
+### Output JSON on-device:
+```json
+{
+  "quality": {
+    "ok": true,
+    "laplacian_var": 793.2898908602531,
+    "glare_pct": 0.4268269230769231,
+    "prompts": []
+  },
+  "geometry": {
+    "marker_detected": true,
+    "mm_per_px": 0.201005,
+    "marker_id": 0,
+    "tilt_deg": 0,
+    "warnings": []
+  }
+}
+```
+
+**Verdict: The A/B comparison passes with 0.000% residual.**
+The phone runs s1 + s3 natively in Kotlin with OpenCV 4.9, producing bit-exact
+quality numbers and planar scale to Python reference on identical bytes.
+
+
 
 

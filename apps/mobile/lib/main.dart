@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() => runApp(const NetraDiag());
 
@@ -66,6 +68,40 @@ class _NetraDiagState extends State<NetraDiag> {
         "options": {"shape_hint": "rectangular"},
       }));
 
+  Future<void> _prepassFromGallery() async {
+    final xfile = await ImagePicker()
+        .pickImage(source: ImageSource.gallery); // NO imageQuality/maxWidth:
+    if (xfile == null) return;                   // re-encoding breaks A/B
+    setState(() => _out = 'vision_prepass on ${xfile.name} ...');
+    try {
+      final b64 = base64Encode(await xfile.readAsBytes());
+      final raw = await _ch.invokeMethod<String>('vision_prepass', jsonEncode({
+            "image_b64": b64,
+            "options": {"shape_hint": "rectangular"},
+          }));
+      setState(() => _out =
+          const JsonEncoder.withIndent('  ').convert(jsonDecode(raw!)));
+    } catch (e) {
+      setState(() => _out = 'ERROR: $e');
+    }
+  }
+
+  Future<void> _prepassS01File() async {
+    setState(() => _out = 'vision_prepass on S01_clean.jpg (asset) ...');
+    try {
+      final byteData = await rootBundle.load('assets/S01_clean.jpg');
+      final bytes = byteData.buffer.asUint8List();
+      final b64 = base64Encode(bytes);
+      final raw = await _ch.invokeMethod<String>('vision_prepass', jsonEncode({
+            "image_b64": b64,
+            "options": {"shape_hint": "rectangular"},
+          }));
+      setState(() => _out =
+          const JsonEncoder.withIndent('  ').convert(jsonDecode(raw!)));
+    } catch (e) {
+      setState(() => _out = 'ERROR: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -91,7 +127,19 @@ class _NetraDiagState extends State<NetraDiag> {
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
                       foregroundColor: Colors.white),
-                  child: const Text('vision_prepass')),
+                  child: const Text('vision_prepass (tiny)')),
+              ElevatedButton(
+                  onPressed: _prepassFromGallery,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepOrange,
+                      foregroundColor: Colors.white),
+                  child: const Text('prepass (gallery)')),
+              ElevatedButton(
+                  onPressed: _prepassS01File,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white),
+                  child: const Text('prepass (S01 direct)')),
             ]),
             Expanded(
                 child: SingleChildScrollView(

@@ -236,12 +236,8 @@ object NetraVision {
         K.put(0, 2, W / 2.0); K.put(1, 2, H / 2.0)
 
         // marker corners at FULL resolution
-        val ptsFull = MatOfPoint2f()
-        val scaleMat = Mat.eye(3, 3, CvType.CV_64F)
-        scaleMat.put(0, 0, 1.0 / scale); scaleMat.put(1, 1, 1.0 / scale)
-        val ptsFullMat = Mat()
-        Core.gemm(scaleMat, pts, 1.0, Mat(), 0.0, ptsFullMat)
-        ptsFullMat.reshape(2, 4).convertTo(ptsFull, CvType.CV_32F)
+        val ptsFullArr = pts.toArray().map { org.opencv.core.Point(it.x / scale, it.y / scale) }
+        val ptsFull = MatOfPoint2f(*ptsFullArr.toTypedArray())
 
         val rvec = Mat(); val tvec = Mat()
         val ok = Calib3d.solvePnP(objPts, ptsFull, K, MatOfDouble(),
@@ -275,7 +271,7 @@ object NetraVision {
 
         g.put("marker_detected", true)
         g.put("mm_per_px", round6(mmPerPx))
-        g.put("marker_id", ids.get(0, 0)[0].toInt())
+        g.put("marker_id", ids.get(bestIdx, 0)[0].toInt())
         if (tiltDeg != null) g.put("tilt_deg", Math.round(tiltDeg * 10) / 10.0)
         g.put("warnings", warnings)
         return finishGeometry(g, opts, warnings)
