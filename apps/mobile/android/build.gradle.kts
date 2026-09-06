@@ -17,6 +17,14 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    pluginManager.withPlugin("com.android.library") {
+        configure<com.android.build.gradle.LibraryExtension> {
+            compileSdk = 34
+        }
+        dependencies {
+            add("compileOnly", "androidx.concurrent:concurrent-futures:1.2.0")
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {

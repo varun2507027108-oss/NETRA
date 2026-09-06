@@ -40,6 +40,11 @@ class ScanTokensRequestBuilder {
     return this;
   }
 
+  ScanTokensRequestBuilder setQualityObject(Quality q) {
+    quality = q;
+    return this;
+  }
+
   ScanTokensRequestBuilder setGeometry({
     String? shape,
     String? shapeDetected,
@@ -56,6 +61,11 @@ class ScanTokensRequestBuilder {
       pdaMethod: pdaMethod,
       rois: rois ?? const [],
     );
+    return this;
+  }
+
+  ScanTokensRequestBuilder setGeometryObject(Geometry g) {
+    geometry = g;
     return this;
   }
 
@@ -81,7 +91,7 @@ class ScanTokensRequestBuilder {
     gps = {
       'lat': lat,
       'lon': lon,
-      if (accuracyM != null) 'accuracy_m': accuracyM,
+      'accuracy_m': ?accuracyM,
     };
     return this;
   }
@@ -92,9 +102,9 @@ class ScanTokensRequestBuilder {
     String? appBuild,
   }) {
     device = {
-      if (model != null) 'model': model,
-      if (os != null) 'os': os,
-      if (appBuild != null) 'app_build': appBuild,
+      'model': ?model,
+      'os': ?os,
+      'app_build': ?appBuild,
     };
     return this;
   }

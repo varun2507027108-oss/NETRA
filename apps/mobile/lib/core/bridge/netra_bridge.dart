@@ -12,7 +12,7 @@ class NetraBridge {
       : _channel = channel ?? _defaultChannel;
 
   /// Internal caller: serializes body to JSON string, invokes method,
-  /// parses returned string to Map<String, dynamic>.
+  /// parses returned string to `Map<String, dynamic>`.
   Future<Map<String, dynamic>> _call(String method,
       [Map<String, dynamic>? body]) async {
     final argString = jsonEncode(body ?? const {});

@@ -117,3 +117,29 @@ def vision_config() -> str:
     from ..config import vision_config as _vc
     return json.dumps(_vc())
 
+
+def get_dossier(scan_id_json: str) -> str:
+    """Contract v1.3 support: dossier bytes for in-app viewing/sharing."""
+    import base64 as _b64
+    from pathlib import Path as _Path
+    try:
+        body = json.loads(scan_id_json)
+        sid = body.get("scan_id")
+    except (json.JSONDecodeError, TypeError):
+        return json.dumps({"error": {"code": "BAD_REQUEST",
+                                     "message": "invalid JSON"}})
+    row = queue_db.get_db().get_scan(sid)
+    if row is None:
+        return json.dumps({"error": {"code": "NOT_FOUND",
+                                     "message": f"no scan {sid}"}})
+    path = row.get("dossier_path")
+    if not path or not _Path(path).exists():
+        return json.dumps({"error": {"code": "NO_DOSSIER",
+                                     "message": "no dossier for this scan"}})
+    data = _Path(path).read_bytes()
+    return json.dumps({"scan_id": sid,
+                       "pdf_b64": _b64.b64encode(data).decode("ascii"),
+                       "sha256": row.get("dossier_sha256"),
+                       "signed": bool(row.get("signature")),
+                       "sig_status": row.get("sig_status") or "pending"})
+

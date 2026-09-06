@@ -220,8 +220,7 @@ class FieldValue {
       throw BridgeParseError('FieldValue.raw must be a string, got $raw');
     }
     final val = json['value'];
-    // Strict string check if present
-    final String? strVal = val == null ? null : val.toString();
+    final String? strVal = val?.toString();
 
     return FieldValue(
       raw: raw,

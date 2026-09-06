@@ -65,5 +65,6 @@ chaquopy {
 
 dependencies {
     implementation("org.opencv:opencv:4.10.0")
+    implementation("androidx.concurrent:concurrent-futures:1.2.0")
 }
 

@@ -90,6 +90,14 @@ object NetraCorePlugin {
                     android.util.Log.i("NetraVision", resp)
                     resp
                 }
+                "get_dossier" ->
+                    api.callAttr("get_dossier", argJson(call)).toString()
+                "sign_and_attach" -> {
+                    // Dart sends the scan-result JSON; Kotlin builds the
+                    // KeyStore signature request and files it in one step.
+                    val attachReq = NetraKeystore.attachRequestFor(argJson(call))
+                    api.callAttr("attach_signature", attachReq).toString()
+                }
                 "smoke" -> Python.getInstance()      // dev-only, not in the contract
                     .getModule("netra_smoke").callAttr("run").toString()
                 else -> {
