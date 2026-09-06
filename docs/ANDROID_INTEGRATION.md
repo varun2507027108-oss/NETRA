@@ -143,5 +143,15 @@ main objdetect module since 4.7) is the enhancement that fills
 `quality` / `geometry`, and slots into the same request with no
 further contract changes.
 
+### Phase 3 hardware proof — scan_tokens loop on-device
+
+Purple-button diagnostic: tokens + geometry + quality -> MethodChannel ->
+scan_tokens -> **verdict VIOLATION (7 FAIL / 4 PASS), on-device dossier
+generated (sha256 recorded, app-internal storage), ledger row filed
+(total: 1, dossiers: 1, pending_sync: 1)**. Screenshot archived with the
+spike results. The B1 loop is closed on real hardware — remaining
+device work is OCR + camera wiring (Antigravity) and the Kotlin vision
+pre-pass.
+
 
 
