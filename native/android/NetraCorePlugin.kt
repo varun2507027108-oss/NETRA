@@ -72,6 +72,8 @@ object NetraCorePlugin {
                     api.callAttr("attach_signature", argJson(call)).toString()
                 "sync_now" -> api.callAttr("sync_now").toString()
                 "queue_status" -> api.callAttr("queue_status").toString()
+                "smoke" -> Python.getInstance()      // dev-only, not in the contract
+                    .getModule("netra_smoke").callAttr("run").toString()
                 else -> {
                     main.post { result.notImplemented() }
                     return
