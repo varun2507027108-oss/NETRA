@@ -191,13 +191,22 @@ def _parse_options(raw):
     fail as BAD_REQUEST."""
     if raw is None:
         raw = {}
-    opts = {
-        "institutional": bool(raw.get("institutional", False)),
-        "fast_food": bool(raw.get("fast_food", False)),
-        "commodity": str(raw.get("commodity") or ""),
-        "blown": bool(raw.get("blown", False)),
-        "dossier_on_pass": bool(raw.get("dossier_on_pass", False)),
-    }
+    _BOOL_KEYS = ("institutional", "fast_food", "blown", "dossier_on_pass")
+    opts = {}
+    for key in _BOOL_KEYS:
+        v = raw.get(key)
+        if v is None:
+            opts[key] = False
+            continue
+        if not isinstance(v, bool):
+            return None, _err("BAD_REQUEST",
+                              f"options.{key} must be a JSON boolean "
+                              f"(true/false), got {type(v).__name__}")
+        opts[key] = v
+    commodity = raw.get("commodity")
+    if commodity is not None and not isinstance(commodity, str):
+        return None, _err("BAD_REQUEST", "options.commodity must be a string")
+    opts["commodity"] = commodity or ""
     for key in _OPT_FLOATS:
         v = raw.get(key)
         if v is None or v == "":
@@ -475,7 +484,9 @@ def result_from_context(ctx: PipelineContext, *, request: Optional[ScanRequest |
                   "conf": round(float(fv.conf), 3)}
               for k, fv in ctx.fields.items()}
 
+    from ..rules.plain_messages import plain_for
     checks = [{"rule": c.rule, "status": c.status.value, "message": c.message,
+               "plain": plain_for(c.rule, c.status.value, c.message),
                "citation": citation(c.rule), "evidence_bbox": _bbox_out(c.evidence)}
               for c in ctx.checks]
 

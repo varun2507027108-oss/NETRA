@@ -52,7 +52,10 @@ flutter {
 chaquopy {
     defaultConfig {
         version = "3.11"
-        buildPython("C:/Users/varun/AppData/Local/Programs/Python/Python311/python.exe")
+        val customPython = (project.findProperty("netraBuildPython") as String?)
+            ?: System.getenv("NETRA_BUILD_PYTHON")
+            ?: "C:/Users/varun/AppData/Local/Programs/Python/Python311/python.exe"
+        buildPython(customPython)
         pip {
             install("netra_core-0.1.0-py3-none-any.whl")
             // ---- Phase 2 probes: ONE tier per rebuild ----

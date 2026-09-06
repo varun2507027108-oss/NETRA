@@ -154,7 +154,8 @@ def _offset_evidence(ctx: PipelineContext, origin: tuple) -> None:
 
 def _record_result(ctx: PipelineContext, result: dict) -> None:
     """Ledger write for COMPLETED scans. A ledger failure must never
-    destroy a completed audit result — it is swallowed."""
+    destroy a completed audit result — but it is surfaced in prompts so
+    the inspector is aware."""
     if result["verdict"] not in ("PASS", "VIOLATION"):
         return
     try:
@@ -165,7 +166,14 @@ def _record_result(ctx: PipelineContext, result: dict) -> None:
                        dossier_path=ctx.dossier_path or None)
         db.update_result(ctx.image_id, result)
     except Exception:
-        pass                    # noqa: S110 — see docstring
+        # Never destroy a completed audit — but never hide the failure
+        # either: the inspector is told the evidence was NOT stored.
+        try:
+            result["quality"].setdefault("prompts", []).append(
+                "Audit calculated, but the evidence ledger write failed — "
+                "do not close this inspection; rescan or report the device")
+        except Exception:
+            pass
 
 
 def run_scan(request: ScanRequest) -> dict:

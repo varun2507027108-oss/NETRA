@@ -44,6 +44,9 @@ class TestOneUnitExemption:
     def test_1000g_is_one_kg_exempt(self):
         assert evaluate_usp(mrp=40, net_qty=1000, qty_unit="g").exempt
 
+    def test_one_litre_via_bare_symbol(self):
+        assert evaluate_usp(30, 1, "L").exempt
+
 
 class TestTolerance:
     def test_exact_match(self):

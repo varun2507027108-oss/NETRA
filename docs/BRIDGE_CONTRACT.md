@@ -110,9 +110,10 @@ bbox: bbox|null, conf: number}`. **Parse money/quantities as strings —
 never as doubles** (display formatting only).
 
 ### 4.4 checks
-`{rule: string, status: string, message: string, citation: string,
+`{rule: string, status: string, message: string, plain: string, citation: string,
 evidence_bbox: bbox|null}` with `status ∈ {PASS, FAIL, NA}`. `rule` keys the
-citation text; `message` is inspector-ready prose. Order is statutory.
+citation text; `message` is statutory/court voice; `plain` is inspector-facing
+plain language for on-device review. Order is statutory.
 
 ### 4.5 geometry
 `shape` = effective shape (inspector hint, else detected); `shape_detected`
@@ -235,6 +236,9 @@ Dart-only build (ML Kit plugin, no Kotlin vision) sends tokens +
 options and gets verdicts; Rule 7 reports NA until geometry arrives.
 
 ## 12. Changelog
+- **1.3.2** — additive: checks gain `plain` field (inspector-facing plain
+  language phrased in the core); `parsers.py` supports bare `L`/`l` litre
+  symbols; bridge schema enforces strict JSON boolean options validation.
 - **1.3.1** — options gains `dossier_on_pass: bool` in `_parse_options` whitelist and pipeline; enables PASS dossier generation via scan_tokens.
 - **1.3.0** — scan_tokens: the B1 device path. Python side complete
   (parser, pipeline, ledger, PIL-only dossier evidence, server +

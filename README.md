@@ -10,8 +10,8 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/varun2507027108-oss/NETRA/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Stages](https://img.shields.io/badge/pipeline-8%2F8%20stages%20live-brightgreen?style=flat-square)](#-the-pipeline--all-8-spec-stages-live)
-[![Tests](https://img.shields.io/badge/tests-338%20passing-success?style=flat-square)](#-testing)
-[![Contract](https://img.shields.io/badge/bridge%20contract-v1.3.0-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
+[![Tests](https://img.shields.io/badge/tests-353%20passing-success?style=flat-square)](#-testing)
+[![Contract](https://img.shields.io/badge/bridge%20contract-v1.3.2-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
 [![Release](https://img.shields.io/badge/release-v0.1.0-2ea44f?style=flat-square)](https://github.com/varun2507027108-oss/NETRA/releases)
 
 ***netra* (नेत्र) — Sanskrit: "the eye."** The inspector's eye that never tires, never blinks,
@@ -33,7 +33,7 @@ and reads font heights in fractions of a millimetre.
 |---|---|
 | 🧠 **Deterministic, not probabilistic** | the legal decision path is rules + `Decimal` arithmetic — same input, same verdict, every time. ~0.45 ms. |
 | ✈️ **Offline-first** | the network only ever touches the queue drain; a scan with zero bars behaves identically to one on 5G |
-| ⚖️ **Court-shaped evidence** | SHA-256 chain → hardware-backed ECDSA P-256 → §63(4) BSA certificate → append-only ledger |
+| ⚖️ **Court-shaped evidence** | SHA-256 chain → hardware-backed ECDSA P-256 → §63(4) BSA certificate → lifecycle-managed evidence ledger |
 | 🏛️ **Institutional integration** | e-Daakhil & NCH 1915 payloads, PostGIS violation heatmaps for inspector route planning |
 
 ---
@@ -237,7 +237,7 @@ statutory core (s5+s6, 25-run mean): 0.45 ms
 
 | | |
 |---|---|
-| ✅ **323 tests** | green on GitHub Actions, Python 3.11 + 3.13 — [the badge is live](https://github.com/varun2507027108-oss/NETRA/actions) |
+| ✅ **353 tests** | green on GitHub Actions, Python 3.11 + 3.13 — the CI run is the canonical test count · [the badge is live](https://github.com/varun2507027108-oss/NETRA/actions) |
 | 🎯 **Statutory boundary tests** | PDA band edges (50/100/500/2500 cm²) · the ₹0.01 USP tolerance · the exactly-one-unit exemption · tobacco & cement carve-outs · "Made in PRC" |
 | 📜 **Executable contract validators** | every payload shape the core emits is validated in-test; Flutter mock fixtures are machine-validated at record time (`core/fixtures/contract/`) |
 | 🏞️ **Golden-report engine** | photograph real packages → per-fixture rule precision/recall (`core/fixtures/README.md`) |
@@ -263,7 +263,7 @@ NETRA/
 │   │   ├── bridge/          the frozen JSON contract, FastAPI + Chaquopy seams
 │   │   ├── vision/          ArUco, geometry, calibration helpers
 │   │   └── qa/              golden-report engine + executable contract validators
-│   ├── tests/               323 tests
+│   ├── tests/               353 tests
 │   ├── scripts/             doctor · demo_all · bench · fiducial card · fixtures · payload checker
 │   └── fixtures/            contract mocks (committed) · real-photo validation protocol
 ├── backend/                 🏛 institutional gateway — FastAPI · SQLAlchemy · PostGIS
@@ -291,9 +291,9 @@ NETRA/
 ## 🗺️ Roadmap
 
 - [x] Deterministic 8-stage pipeline — every spec stage live on the deterministic engine
-- [x] Evidence chain: dossier → ECDSA P-256 → append-only ledger → sync → exports
-- [x] Bridge contract v1.3.0 + executable validators + machine-validated Flutter mocks
-- [x] CI green — 335 tests, Python 3.11 & 3.13
+- [x] Evidence chain: dossier → ECDSA P-256 → lifecycle-managed ledger → sync → exports
+- [x] Bridge contract v1.3.2 + executable validators + machine-validated Flutter mocks
+- [x] CI green — 353 tests, Python 3.11 & 3.13
 - [x] Android native seam — MethodChannel pipe, KeyStore signer, environment spike
 - [x] Chaquopy device spike → Path B1 confirmed (numpy/reportlab/pillow on-device; s7 live)
 - [ ] On-device OCR — ML Kit v2 + IndicPhotoOCR via the Chaquopy Java bridge

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import Boolean, Float, String, Text
+from sqlalchemy import Boolean, Float, Index, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from .db import postgis_enabled
@@ -22,6 +22,10 @@ class ScanRecord(Base):
     the full contract ScanResult. APPEND-ONLY: re-ingesting a scan_id is
     an idempotent no-op."""
     __tablename__ = "scans"
+    __table_args__ = (
+        Index("ix_scans_received_utc", "received_utc"),
+        Index("ix_scans_verdict", "verdict"),
+    )
 
     scan_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     verdict: Mapped[str] = mapped_column(String(16))

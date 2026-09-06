@@ -92,22 +92,22 @@ class _CheckTileState extends State<CheckTile> {
           ),
           const SizedBox(height: 8),
 
-          // Message
+          // Primary text: Plain language inspector voice (Contract v1.3.2)
           Text(
-            widget.check.message,
+            widget.check.plain.isNotEmpty ? widget.check.plain : widget.check.message,
             style: AppTypography.body,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
 
-          // Statutory citation expander
-          if (widget.check.citation.isNotEmpty) ...[
+          // Details expander: Statutory message + citation
+          if (widget.check.citation.isNotEmpty || widget.check.message.isNotEmpty) ...[
             InkWell(
               onTap: () => setState(() => _expanded = !_expanded),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _expanded ? 'Statutory basis ▴' : 'Statutory basis ▾',
+                    _expanded ? 'Details ▴' : 'Details ▾',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.navy,
                       fontWeight: FontWeight.w500,
@@ -117,7 +117,7 @@ class _CheckTileState extends State<CheckTile> {
               ),
             ),
             if (_expanded) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
@@ -125,9 +125,39 @@ class _CheckTileState extends State<CheckTile> {
                   color: AppColors.monoBg,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text(
-                  widget.check.citation,
-                  style: AppTypography.caption,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.check.message != widget.check.plain) ...[
+                      Text(
+                        'Statutory Finding:',
+                        style: AppTypography.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.inkSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.check.message,
+                        style: AppTypography.caption,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    if (widget.check.citation.isNotEmpty) ...[
+                      Text(
+                        'Legal Basis:',
+                        style: AppTypography.caption.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.inkSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.check.citation,
+                        style: AppTypography.caption,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],

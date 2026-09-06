@@ -77,6 +77,13 @@ def test_request_ok_with_options():
     assert req.options["commodity"] == "biscuits"
 
 
+def test_request_rejects_string_boolean():
+    req, err = scan_request_from_dict(
+        {"image_b64": "AAAA", "options": {"institutional": "false"}})
+    assert req is None and err["code"] == "BAD_REQUEST"
+
+
+
 # ----------------------------------------------------------- result freezing
 def test_result_keys_frozen():
     r = run_demo_scan()
@@ -115,8 +122,10 @@ def test_bbox_is_four_ints():
 
 def test_checks_shape_and_citations():
     for c in run_demo_scan()["checks"]:
-        assert set(c) == {"rule", "status", "message", "citation", "evidence_bbox"}
+        assert set(c) == {"rule", "status", "message", "plain", "citation", "evidence_bbox"}
         assert c["citation"]                       # never empty in the report UI
+        assert c["plain"]                          # contract v1.3.2 inspector field-voice
+
 
 
 def test_timings_within_canonical_stages():

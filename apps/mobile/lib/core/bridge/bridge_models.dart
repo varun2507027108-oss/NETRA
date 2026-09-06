@@ -259,6 +259,7 @@ class CheckItem {
   final String rule;
   final CheckStatus status;
   final String message;
+  final String plain;
   final String citation;
   final BBox? evidenceBbox;
 
@@ -266,6 +267,7 @@ class CheckItem {
     required this.rule,
     required this.status,
     required this.message,
+    required this.plain,
     required this.citation,
     this.evidenceBbox,
   });
@@ -284,6 +286,7 @@ class CheckItem {
     if (message is! String) {
       throw BridgeParseError('CheckItem.message must be a string, got $message');
     }
+    final plain = json['plain'] as String? ?? message;
     final citation = json['citation'];
     if (citation is! String) {
       throw BridgeParseError('CheckItem.citation must be a string, got $citation');
@@ -293,6 +296,7 @@ class CheckItem {
       rule: rule,
       status: status,
       message: message,
+      plain: plain,
       citation: citation,
       evidenceBbox: BBox.fromList(json['evidence_bbox'] as List<dynamic>?),
     );
@@ -302,6 +306,7 @@ class CheckItem {
         'rule': rule,
         'status': status.value,
         'message': message,
+        'plain': plain,
         'citation': citation,
         'evidence_bbox': evidenceBbox?.toList(),
       };

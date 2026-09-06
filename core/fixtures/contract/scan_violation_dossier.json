@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "scan_id": "8d781ae2708840619805b2b366a82262",
+  "scan_id": "d3c559b22d144e4e96cf71f707f1d99e",
   "verdict": "VIOLATION",
-  "captured_utc": "2026-09-06T06:05:50.141Z",
-  "completed_utc": "2026-09-06T06:05:50.248Z",
-  "total_ms": 88.63,
+  "captured_utc": "2026-09-06T16:08:25.803Z",
+  "completed_utc": "2026-09-06T16:08:25.913Z",
+  "total_ms": 90.55,
   "timings_ms": {
     "s4_ocr": 0.0,
-    "s5_field_extract": 0.36,
-    "s6_metrology": 0.16,
-    "s7_dossier": 88.11
+    "s5_field_extract": 0.33,
+    "s6_metrology": 0.15,
+    "s7_dossier": 90.07
   },
   "quality": {
     "ok": null,
@@ -304,6 +304,7 @@
       "rule": "13",
       "status": "FAIL",
       "message": "Prohibited unit syntax 'gms' in net quantity — statutory symbol 'g' required. Rule 13, LMPC Rules 2011 — standard metric unit symbols; prohibited syntax (gms, ltr, cc, ...).",
+      "plain": "The label says 'gms' — the correct unit symbol is 'g'.",
       "citation": "Rule 13, LMPC Rules 2011 — standard metric unit symbols; prohibited syntax (gms, ltr, cc, ...).",
       "evidence_bbox": [
         120,
@@ -316,6 +317,7 @@
       "rule": "6(1)(c)",
       "status": "FAIL",
       "message": "Unit 'gms' is not a standard SI symbol (Rule 6(1)(c) read with Rules 11-13).",
+      "plain": "The net quantity is printed in a non-standard unit.",
       "citation": "Rule 6(1)(c), LMPC Rules 2011 — net quantity in standard metric units.",
       "evidence_bbox": [
         120,
@@ -328,6 +330,7 @@
       "rule": "6(1)(e)",
       "status": "FAIL",
       "message": "MRP non-compliant — missing statutory phrase 'inclusive of all taxes'.",
+      "plain": "The MRP is printed but ''incl. of all taxes' is missing' — this wording is legally required.",
       "citation": "Rule 6(1)(e), LMPC Rules 2011 — MRP with 'inclusive of all taxes' phrasing.",
       "evidence_bbox": [
         120,
@@ -340,6 +343,7 @@
       "rule": "6(11)",
       "status": "FAIL",
       "message": "USP math error — declared Rs 0.35 vs calculated Rs 0.20 per g (tolerance Rs 0.01)",
+      "plain": "The unit price printed on the pack doesn't match the MRP.",
       "citation": "Rule 6(11), LMPC Rules 2011 — Unit Sale Price declaration and reference units.",
       "evidence_bbox": [
         120,
@@ -352,6 +356,7 @@
       "rule": "6(1)(d)",
       "status": "PASS",
       "message": "Date of manufacture 08/2026.",
+      "plain": "Manufacturing date is valid.",
       "citation": "Rule 6(1)(d), LMPC Rules 2011 — month & year of manufacture / packing / import (MM/YYYY or Month YYYY).",
       "evidence_bbox": [
         40,
@@ -364,6 +369,7 @@
       "rule": "6(1)(a)",
       "status": "PASS",
       "message": "Manufacturer/packer details with PIN 400001.",
+      "plain": "Maker's details with PIN code are complete.",
       "citation": "Rule 6(1)(a), LMPC Rules 2011 — name & complete postal address of manufacturer / packer / importer, incl. 6-digit PIN.",
       "evidence_bbox": [
         40,
@@ -376,6 +382,7 @@
       "rule": "6(1)(aa)",
       "status": "FAIL",
       "message": "Ambiguous origin 'PRC' — Rule 6(1)(aa) requires an explicit country (e.g., 'Made in PRC' must read 'Made in China').",
+      "plain": "Country of origin is missing or unclear.",
       "citation": "Rule 6(1)(aa), LMPC Rules 2011 — country of origin, explicit (no ambiguous abbreviations).",
       "evidence_bbox": [
         40,
@@ -388,6 +395,7 @@
       "rule": "6(1)(n)",
       "status": "FAIL",
       "message": "Consumer care incomplete — missing email address, postal address with PIN.",
+      "plain": "Consumer care details are incomplete (helpline / email / address).",
       "citation": "Rule 6(1)(n), LMPC Rules 2011 — consumer care details (name, address, helpline, email).",
       "evidence_bbox": [
         40,
@@ -400,6 +408,7 @@
       "rule": "6(1)(b)",
       "status": "PASS",
       "message": "Common/generic name present — semantic adequacy needs manual review.",
+      "plain": "Product name is present.",
       "citation": "Rule 6(1)(b), LMPC Rules 2011 — common / generic name of the commodity.",
       "evidence_bbox": [
         200,
@@ -412,6 +421,7 @@
       "rule": "7",
       "status": "FAIL",
       "message": "Net quantity: measured 1.20 mm vs required 1.5 mm (normal print, PDA 80 cm²).",
+      "plain": "The printed letters are smaller than the legal minimum for this pack size.",
       "citation": "Rule 7 & Table-I (G.S.R. 629(E)), LMPC Rules 2011 — minimum numeral/letter height by PDA band.",
       "evidence_bbox": [
         120,
@@ -424,6 +434,7 @@
       "rule": "7",
       "status": "PASS",
       "message": "MRP: measured 1.60 mm vs required 1.5 mm (normal print, PDA 80 cm²).",
+      "plain": "Letter heights meet the legal minimum.",
       "citation": "Rule 7 & Table-I (G.S.R. 629(E)), LMPC Rules 2011 — minimum numeral/letter height by PDA band.",
       "evidence_bbox": [
         120,
@@ -445,8 +456,8 @@
     "na": 0
   },
   "dossier": {
-    "sha256": "c1f727a8929b9c94d54457489999834180142bec0987fdccc37d4ac18510b9df",
-    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmp85awzs8p\\netra\\dossiers\\netra_8d781ae2708840619805b2b366a82262.pdf",
+    "sha256": "b450016b60db1353caa7a2b615d2d2ccbdd14bb77a0260d638fbcaff45723126",
+    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmph39vwo9g\\netra\\dossiers\\netra_d3c559b22d144e4e96cf71f707f1d99e.pdf",
     "signed": false,
     "signature": null,
     "cert_pem": null,

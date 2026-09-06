@@ -51,6 +51,15 @@ def test_demo_result_conforms():
     assert contract.validate_scan_result(run_demo_scan()) == []
 
 
+def test_checks_carry_plain_language():
+    r = run_demo_scan()
+    for c in r["checks"]:
+        assert isinstance(c.get("plain"), str) and c["plain"]
+    fail13 = next(c for c in r["checks"] if c["rule"] == "13")
+    assert "gms" in fail13["plain"] and "'g'" in fail13["plain"]
+
+
+
 def test_demo_dossier_result_conforms():
     r = run_demo_scan(dossier=True)
     assert contract.validate_scan_result(r) == []

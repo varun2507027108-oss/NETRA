@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "scan_id": "392ece6e71244a3c990fa17442314853",
+  "scan_id": "3d06e5e4628d4418aee5dfa2c1d478c9",
   "verdict": "RETRY",
-  "captured_utc": "2026-09-06T06:05:50.266Z",
-  "completed_utc": "2026-09-06T06:05:50.271Z",
-  "total_ms": 4.19,
+  "captured_utc": "2026-09-06T16:08:25.924Z",
+  "completed_utc": "2026-09-06T16:08:25.941Z",
+  "total_ms": 14.4,
   "timings_ms": {
-    "s1_frame_quality": 4.19
+    "s1_frame_quality": 14.4
   },
   "quality": {
     "ok": false,
@@ -38,8 +38,9 @@
     "options": {
       "institutional": false,
       "fast_food": false,
-      "commodity": "",
-      "blown": false
+      "blown": false,
+      "dossier_on_pass": false,
+      "commodity": ""
     }
   },
   "error": null

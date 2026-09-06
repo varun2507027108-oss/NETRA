@@ -113,3 +113,48 @@ def test_export_requires_violation(api):
     assert api.post("/ingest", json=env).status_code == 200
     assert api.post(f"/export/edakakhil/{r['scan_id']}").status_code == 400
     assert api.post(f"/export/nch1915/{r['scan_id']}").status_code == 400
+
+
+def test_auth_with_gateway_token(api, monkeypatch):
+    monkeypatch.setenv("NETRA_GATEWAY_TOKEN", "secret-token-123")
+    env = _envelope()
+    # without token -> 401
+    assert api.post("/ingest", json=env).status_code == 401
+    # with wrong token -> 401
+    assert api.post("/ingest", json=env, headers={"Authorization": "Bearer wrong"}).status_code == 401
+    # with valid token -> 200
+    resp = api.post("/ingest", json=env, headers={"Authorization": "Bearer secret-token-123"})
+    assert resp.status_code == 200
+
+
+def test_ingest_rejects_contract_violating_result(api):
+    env = _envelope()
+    bad_result = dict(env["result"])
+    bad_result.pop("verdict")   # violates contract
+    env["result"] = bad_result
+    resp = api.post("/ingest", json=env)
+    assert resp.status_code == 422
+    assert "violates bridge contract" in resp.json()["detail"]
+
+
+def test_server_side_signature_verification_enforced(api):
+    env = _envelope()
+    # tamper with signature so it fails verification
+    env["signature"] = "corrupted_sig_base64"
+    resp = api.post("/ingest", json=env)
+    assert resp.status_code == 422
+    assert "signature invalid" in resp.json()["detail"]
+
+
+def test_server_side_verification_ignores_client_sig_verified_flag(api):
+    env = _envelope()
+    # Client lies saying sig_verified is False when it is actually valid
+    env["sig_verified"] = False
+    resp = api.post("/ingest", json=env)
+    assert resp.status_code == 200
+    # Query scan from api
+    scan_data = api.get(f"/scans/{env['scan_id']}").json()
+    if crypto.HAVE_CRYPTO:
+        # Computed server-side, not trusting client False
+        assert scan_data["sig_verified"] is True
+

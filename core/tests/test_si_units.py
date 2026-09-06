@@ -48,6 +48,11 @@ class TestParseQuantity:
     def test_indian_grouping(self):
         assert parse_quantity("1,000 g").value == Decimal("1000")
 
+    def test_bare_litre_symbol(self):
+        assert parse_quantity("1 L").unit == "L"
+        assert parse_quantity("1 l").value == Decimal("1")
+        assert parse_quantity("Net Quantity: 1 L").unit == "L"
+
     def test_none_when_absent(self):
         assert parse_quantity("MRP ₹ 50.00") is None
         assert parse_quantity("") is None

@@ -226,3 +226,16 @@ def test_dossier_on_pass_option_flows_through():
     assert r["dossier"] is not None and len(r["dossier"]["sha256"]) == 64
     assert queue_db.get_db().status()["dossiers"] == 1
 
+
+def test_ledger_failure_warns_instead_of_lying(monkeypatch):
+    from netra_core.persistence import queue_db
+    def boom():
+        raise RuntimeError("disk full")
+    monkeypatch.setattr(queue_db, "get_db", boom)
+    r = _run(_body(_DEMO_TOKENS, geometry=GEOM))
+    assert r["verdict"] == "VIOLATION"              # audit result survives
+    assert any("ledger" in p.lower()
+               for p in r["quality"]["prompts"])    # failure is surfaced
+    assert contract.validate_scan_result(r) == []   # still contract-valid
+
+

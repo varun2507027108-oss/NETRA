@@ -64,7 +64,7 @@ _UNIT_CANON = {
 
 _QTY_RE = re.compile(
     r"([0-9]+(?:[.,][0-9]+)*)\s*"
-    r"(millilitres?|milliliters?|litres?|liters?|ltr?|kilograms?|kilos?|kgs?|"
+    r"(millilitres?|milliliters?|litres?|liters?|ltr?|l|kilograms?|kilos?|kgs?|"
     r"gms?|grm|grams?|gm|g|mg|cl|ml|cm2|cm|mm|m2|m|nos|n|units?|u|"
     r"pcs|pieces?|pc|pair|set)\b",
     re.IGNORECASE,

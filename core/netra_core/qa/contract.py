@@ -208,7 +208,7 @@ def validate_scan_result(r: Any) -> list:
     else:
         for i, chk in enumerate(c):
             label = f"checks[{i}]"
-            if not _keys(chk, ("rule", "status", "message", "citation",
+            if not _keys(chk, ("rule", "status", "message", "plain", "citation",
                                "evidence_bbox"), label, errs):
                 continue
             if not isinstance(chk["rule"], str) or not chk["rule"]:
@@ -217,6 +217,8 @@ def validate_scan_result(r: Any) -> list:
                 E(f"{label}.status: {chk['status']!r} not in {CHECK_STATUS}")
             if not isinstance(chk["message"], str) or not chk["message"]:
                 E(f"{label}.message: must be a non-empty string")
+            if "plain" in chk and not isinstance(chk["plain"], str):
+                E(f"{label}.plain: must be a string")
             if not isinstance(chk["citation"], str) or not chk["citation"]:
                 E(f"{label}.citation: must be a non-empty string")
             if chk["evidence_bbox"] is not None and \
