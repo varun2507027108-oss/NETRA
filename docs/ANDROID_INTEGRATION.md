@@ -101,3 +101,20 @@ Statutory logic. Verdicts, rule checks, USP math, Table-I bands — all
 live in `netra_core.rules` and only there. Kotlin pipes JSON and signs
 the exact payload string. If a Kotlin file ever grows a rule citation,
 the architecture is broken.
+
+## Spike results — recorded on-device (arm64-v8a, Chaquopy 17.0.0, Python 3.11)
+
+Baseline build: dependency-free wheel only — no pip tiers (deliberate:
+minimum failure surface; `ping` works regardless of vision-stack outcome).
+
+| Probe | Result |
+|---|---|
+| ping | s4/s5/s6 live, `sync: true`; s1/s2/s3/s7 excluded (cv2/reportlab not installed) |
+| queue_status | SQLite WAL evidence ledger operational on internal storage |
+| smoke | `statutory_core: ok` · `bridge: ok` · cv2/numpy/PIL/reportlab not installed |
+
+**Verdict: the seam holds on real hardware.** `run_scan` on this baseline
+returns an INTERNAL envelope (pipeline imports cv2 at module top) —
+expected; capabilities are probed before the vision decision. Phase 2
+(tiered pip installs) decides Path A-lean vs B1 — see the decision tree.
+
