@@ -137,5 +137,43 @@ def queue_status() -> dict:
     return {"schema_version": SCHEMA_VERSION, **queue_db.get_db().status()}
 
 
+@app.post("/vision/prepass")
+def vision_prepass_ab(body: dict) -> dict:
+    """Desktop A/B: runs Python s1 + s3 (the full path) on a submitted
+    image so Kotlin-on-device results can be compared number-for-number
+    with the reference implementation."""
+    import cv2
+    import numpy as np
+    from ..context import PipelineContext
+    from ..stages import s1_frame_quality, s3_calibration
+    from .schema import _parse_options
+
+    request, err = scan_request_from_dict(body)
+    if err is not None:
+        return {"error": err}
+    import base64
+    try:
+        raw = base64.b64decode(request.image_b64, validate=True)
+        img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
+    except Exception as e:
+        return {"error": {"code": "DECODE_ERROR", "message": str(e)}}
+    if img is None:
+        return {"error": {"code": "DECODE_ERROR", "message": "undecodable"}}
+
+    ctx = PipelineContext(shape_hint=request.shape_hint)
+    q = s1_frame_quality.run(ctx, img)
+    calib = s3_calibration.run(ctx, img, options=request.options)
+    return {
+        "quality": ctx.quality,
+        "geometry": {
+            "mm_per_px": ctx.mm_per_px, "pda_cm2": ctx.pda_cm2,
+            "pda_method": ctx.pda_method or None,
+        },
+        "reference": {"laplacian_var": q.laplacian_var,
+                      "glare_pct": q.glare_pct},
+    }
+
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host=HOST, port=PORT, log_level="info")

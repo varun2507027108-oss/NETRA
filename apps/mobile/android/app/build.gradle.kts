@@ -62,3 +62,8 @@ chaquopy {
         }
     }
 }
+
+dependencies {
+    implementation("org.opencv:opencv:4.10.0")
+}
+

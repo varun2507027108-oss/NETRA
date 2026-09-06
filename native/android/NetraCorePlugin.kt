@@ -32,6 +32,7 @@ object NetraCorePlugin {
 
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
+    private var cfg: String? = null
 
     fun register(context: Context, messenger: BinaryMessenger) {
         // Chaquopy must be started once before the first Python call, and
@@ -73,6 +74,20 @@ object NetraCorePlugin {
                     api.callAttr("attach_signature", argJson(call)).toString()
                 "sync_now" -> api.callAttr("sync_now").toString()
                 "queue_status" -> api.callAttr("queue_status").toString()
+                "vision_config" ->
+                    api.callAttr("vision_config").toString()
+                "vision_prepass" -> {
+                    // config fetched once from the Python core (the law)
+                    if (cfg == null) {
+                        cfg = api.callAttr("vision_config").toString()
+                        NetraVision.loadConfig(cfg!!)
+                    }
+                    val args = JSONObject(argJson(call))
+                    NetraVision.prepass(
+                        args.getString("image_b64"),
+                        args.optJSONObject("options")?.toString() ?: "{}"
+                    )
+                }
                 "smoke" -> Python.getInstance()      // dev-only, not in the contract
                     .getModule("netra_smoke").callAttr("run").toString()
                 else -> {

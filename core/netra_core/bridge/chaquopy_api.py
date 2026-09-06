@@ -110,3 +110,10 @@ def queue_status() -> str:
 
 def sync_now() -> str:
     return json.dumps(sync_client.sync_now())
+
+
+def vision_config() -> str:
+    """Serve the shared vision thresholds (Kotlin prepass reads this)."""
+    from ..config import vision_config as _vc
+    return json.dumps(_vc())
+

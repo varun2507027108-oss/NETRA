@@ -45,3 +45,21 @@ SHAPE_SAGITTA_FRAC = 0.04        # top-edge sagitta/width -> cylindrical
 BARCODE_MIN_ASPECT = 1.4         # w/h of a 1D barcode region
 BARCODE_MIN_EDGE_DENSITY = 0.28  # in-box vertical-edge density
 BARCODE_MIN_COL_CV = 1.0         # column-profile variation (stripe periodicity)
+
+
+# ---- vision prepass shared config (Kotlin reads this JSON; one source) ----
+def vision_config() -> dict:
+    """Statutory thresholds + calibration constants shared with the Kotlin
+    prepass. ONE source of truth: config.py values serialize to the JSON
+    bundled in the wheel; NetraVision.kt reads the JSON, never hardcodes."""
+    cfg = {k: globals()[k] for k in (
+        "LAPLACIAN_VAR_MIN", "GLARE_PIXEL_MAX", "GLARE_AREA_PCT_MAX",
+        "ARUCO_MARKER_MM")}
+    cfg.update({
+        "ARUCO_DICT": "DICT_4X4_50",
+        "SOLVEPNP_SCALE_TOLERANCE": 0.15,
+        "MAX_TILT_DEG": 25.0,
+        "PDA_CYL_COEF": 0.40,
+        "PDA_SANITY_CM2": list(PDA_SANITY_CM2),
+    })
+    return cfg

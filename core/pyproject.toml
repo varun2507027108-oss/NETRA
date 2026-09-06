@@ -23,5 +23,8 @@ dev = ["pytest>=7.4", "ruff>=0.4", "opencv-python", "numpy",
 [tool.setuptools.packages.find]
 include = ["netra_core*"]
 
+[tool.setuptools.package-data]
+netra_core = ["vision_config.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

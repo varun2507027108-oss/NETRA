@@ -57,6 +57,16 @@ class _NetraDiagState extends State<NetraDiag> {
         "device": {"model": "diagnostic shell", "os": "android"},
       }));
 
+  // 1x1 gray JPEG in base64
+  static const _tinyJpeg =
+      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+
+  void _visionPrepass() => _call('vision_prepass', jsonEncode({
+        "image_b64": _tinyJpeg,
+        "options": {"shape_hint": "rectangular"},
+      }));
+
+
   @override
   Widget build(BuildContext context) => MaterialApp(
         home: Scaffold(
@@ -76,6 +86,12 @@ class _NetraDiagState extends State<NetraDiag> {
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white),
                   child: const Text('scan_tokens ▶ VIOLATION')),
+              ElevatedButton(
+                  onPressed: _visionPrepass,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white),
+                  child: const Text('vision_prepass')),
             ]),
             Expanded(
                 child: SingleChildScrollView(
@@ -86,4 +102,5 @@ class _NetraDiagState extends State<NetraDiag> {
           ]),
         ),
       );
+
 }
