@@ -21,11 +21,12 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+REPO = ROOT.parent
 TARGETS = (
     Path.home() / ".netra",
     ROOT / "netra_data",
     ROOT / "demo_output",
-    ROOT / "backend" / "netra_backend.db",
+    REPO / "backend" / "netra_backend.db",
 )
 
 
