@@ -60,6 +60,7 @@ Unknown keys are ignored (forward compatibility).
 | `marker_side_mm` | number | fiducial side override (default 40) |
 | `camera_focal_px` | number | intrinsics when known (solvePnP path) |
 | `cylinder_left_px` / `cylinder_right_px` | int | cylinder silhouette override (s2) |
+| `dossier_on_pass` | bool | generate dossier on PASS (default false) |
 
 Invalid values for known keys → `BAD_REQUEST`; unknown keys ignored.
 
@@ -234,6 +235,7 @@ Dart-only build (ML Kit plugin, no Kotlin vision) sends tokens +
 options and gets verdicts; Rule 7 reports NA until geometry arrives.
 
 ## 12. Changelog
+- **1.3.1** — options gains `dossier_on_pass: bool` in `_parse_options` whitelist and pipeline; enables PASS dossier generation via scan_tokens.
 - **1.3.0** — scan_tokens: the B1 device path. Python side complete
   (parser, pipeline, ledger, PIL-only dossier evidence, server +
   chaquopy + channel methods, request validator, recorded fixtures).

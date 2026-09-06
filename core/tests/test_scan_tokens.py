@@ -217,3 +217,12 @@ def test_pda_sanity_bounds_drop_garbage_dims():
                             "package_width_cm": 250.0}))
     assert r["geometry"] is None          # 75,000 cm2 -> out of sanity range
 
+
+def test_dossier_on_pass_option_flows_through():
+    geom = {"mm_per_px": 0.05, "pda_cm2": 50.0}
+    r = _run(_body(_tokens_from_label(COMPLIANT_LABEL), geometry=geom,
+                   options={"dossier_on_pass": True}))
+    assert r["verdict"] == "PASS"
+    assert r["dossier"] is not None and len(r["dossier"]["sha256"]) == 64
+    assert queue_db.get_db().status()["dossiers"] == 1
+

@@ -196,6 +196,7 @@ def _parse_options(raw):
         "fast_food": bool(raw.get("fast_food", False)),
         "commodity": str(raw.get("commodity") or ""),
         "blown": bool(raw.get("blown", False)),
+        "dossier_on_pass": bool(raw.get("dossier_on_pass", False)),
     }
     for key in _OPT_FLOATS:
         v = raw.get(key)
