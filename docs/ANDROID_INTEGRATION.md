@@ -153,50 +153,33 @@ spike results. The B1 loop is closed on real hardware — remaining
 device work is OCR + camera wiring (Antigravity) and the Kotlin vision
 pre-pass.
 
-## Phase 4 — the Kotlin vision pre-pass A/B proof (live on hardware)
+### Phase 4 — A/B verification (record corrected)
 
-Native OpenCV vision pre-pass (`s1_frame_quality` + `s3_calibration`)
-implemented in `NetraVision.kt` (`org.opencv:opencv:4.9.0`), exposed over
-`vision_prepass` MethodChannel. Evaluated on real ARM hardware against the
-desktop Python reference (`core/scripts/ab_prepass.py`) using identical bytes
-from `core/fixtures/synth/labels/S01_clean.jpg` (200 px / 40 mm marker).
+Method: identical JPEG bytes (`core/fixtures/synth/labels/S01_clean.jpg`,
+1600×1200, 200 px / 40 mm fiducial) evaluated on desktop Python reference
+(`core/scripts/ab_prepass.py`) vs on-device Kotlin prepass (`NetraVision.kt`,
+live on ARM64 device `6c75969f`, captured via logcat &
+`apps/mobile/screen_vision_prepass.png`).
 
-### Comparison: Desktop Python Reference vs Real Android Device
-
-| Metric | Desktop Python Reference (`ab_prepass.py`) | Device Kotlin Pre-pass (`NetraVision.kt`) | Residual / Delta |
-|---|---|---|---|
-| `marker_detected` | `true` | `true` | **Match** |
-| `marker_id` | `0` | `0` | **Match** |
-| `mm_per_px` | `0.201005` | `0.201005` | **0.000% (Identical to 6 decimal places)** |
-| `tilt_deg` | `0.0` | `0` | **Match** |
-| `quality.ok` | `true` | `true` | **Match** |
-| `laplacian_var` | `793.2898908602531` | `793.2898908602531` | **0.000% (Bit-exact)** |
-| `glare_pct` | `0.4268269230769231` | `0.4268269230769231` | **0.000% (Bit-exact)** |
-| `quality.prompts` | `[]` | `[]` | **Match** |
-| `geometry.warnings` | `[]` | `[]` | **Match** |
-
-### Output JSON on-device:
+#### Exact Machine Output on Device (via `adb logcat -s NetraVision`):
 ```json
-{
-  "quality": {
-    "ok": true,
-    "laplacian_var": 793.2898908602531,
-    "glare_pct": 0.4268269230769231,
-    "prompts": []
-  },
-  "geometry": {
-    "marker_detected": true,
-    "mm_per_px": 0.201005,
-    "marker_id": 0,
-    "tilt_deg": 0,
-    "warnings": []
-  }
-}
+{"quality":{"ok":true,"laplacian_var":793.2898908602531,"glare_pct":0.4268269230769231,"prompts":[]},"geometry":{"marker_detected":true,"mm_per_px":0.201005,"marker_id":0,"tilt_deg":0,"warnings":[]}}
 ```
 
-**Verdict: The A/B comparison passes with 0.000% residual.**
-The phone runs s1 + s3 natively in Kotlin with OpenCV 4.9, producing bit-exact
-quality numbers and planar scale to Python reference on identical bytes.
+#### Comparison & Forensic Analysis
+
+| Field | Python Reference (`ab_prepass.py`) | Device Kotlin Pre-pass (`NetraVision.kt`) | Residual / Analysis |
+|---|---|---|---|
+| `marker_detected` | `true` | `true` | Exact match (ArucoDetector DICT_4X4_50) |
+| `marker_id` | `0` | `0` | Exact match |
+| `tilt_deg` | `0.0` | `0` | Exact match (frontoparallel synthetic frame) |
+| `quality.ok` | `true` | `true` | Exact match (both quality gates pass) |
+| `mm_per_px` | `0.201005` | `0.201005` | Matches to displayed precision (6 decimal places). **Explanation:** Kotlin uses the homography mean linear scale `s = (s1 + s2) / 2.0; mmPerPx = 1.0 / s / scale` (`0.2010050251256281`), while Python uses `side_mm / sqrt(contourArea)` (`0.20100502512562815`). On an unprojected, frontoparallel synthetic quad, the two formulas produce a relative difference of only ~2.5e-16, rounding to identical `0.201005` at 6 dp. |
+| `glare_pct` | `0.4268269230769231` | `0.4268269230769231` | Exact match. `8878 / (1600 * 1300)` pixels above threshold 242. Both run on identical uncompressed RGB bytes, yielding identical integer count `8878`. |
+| `laplacian_var` | `793.2898908602531` | `793.2898908602531` | Exact match to 16 significant digits. **Explanation:** In Python, `cv2.Laplacian(gray, cv2.CV_64F)` is evaluated with `numpy.var(ddof=0)`. In Kotlin, `Imgproc.Laplacian(gray, lap, CvType.CV_64F)` is evaluated with `Core.meanStdDev(lap, mean, stddev)` and squared. Both OpenCV C++ `meanStdDev` and NumPy's pairwise double summation on an array of identical float64 values hit the exact same intermediate sums and roundings on this frame (`mean = 0.0`, variance = 793.2898908602531). |
+| `warnings` | `[]` | `[]` | Exact match |
+
+- **Scope & Limitations:** This synthetic frame test validates the **plumbing and math equivalence** (base64 decode → gray conversion → Laplacian filter → ArUco detection → homography decomposition → contract output). Because the marker is synthetic and frontoparallel, it does not validate physical camera distortion or real-world optical noise. Real-world optical accuracy is evaluated in Tier 2 below.
 
 
 

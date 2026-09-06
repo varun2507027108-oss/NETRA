@@ -83,10 +83,12 @@ object NetraCorePlugin {
                         NetraVision.loadConfig(cfg!!)
                     }
                     val args = JSONObject(argJson(call))
-                    NetraVision.prepass(
+                    val resp = NetraVision.prepass(
                         args.getString("image_b64"),
                         args.optJSONObject("options")?.toString() ?: "{}"
                     )
+                    android.util.Log.i("NetraVision", resp)
+                    resp
                 }
                 "smoke" -> Python.getInstance()      // dev-only, not in the contract
                     .getModule("netra_smoke").callAttr("run").toString()
