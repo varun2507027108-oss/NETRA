@@ -45,3 +45,5 @@ netra_backend.db
 backend/*.db
 core/fixtures/synth/
 core/demo_output/
+core/yolo_ds/
+core/models/
