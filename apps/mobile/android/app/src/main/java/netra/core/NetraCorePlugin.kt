@@ -39,6 +39,7 @@ object NetraCorePlugin {
         // configure() must pin the evidence directory (ledger + dossiers)
         // to app-internal storage BEFORE the first scan (contract §2).
         val appContext = context.applicationContext
+        NetraVision.attach(appContext)
         executor.execute {
             try {
                 if (!Python.isStarted()) {
@@ -81,6 +82,7 @@ object NetraCorePlugin {
                     if (cfg == null) {
                         cfg = api.callAttr("vision_config").toString()
                         NetraVision.loadConfig(cfg!!)
+                        NetraVision.loadYolo(cfg!!)
                     }
                     val args = JSONObject(argJson(call))
                     val resp = NetraVision.prepass(

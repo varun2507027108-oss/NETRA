@@ -1,8 +1,10 @@
 package netra.core
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
+import org.json.JSONArray
 import org.json.JSONObject
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
@@ -65,6 +67,50 @@ object NetraVision {
     private fun c(name: String): Double = cfg!!.optDouble(name)
     private fun cInt(name: String): Int = cfg!!.optInt(name)
 
+    // --- v1.4.0: on-device YOLO ROI detection (netra_roi r1) -------------
+    // Context arrives via NetraCorePlugin.register -> attach(); the model
+    // config arrives via loadYolo(cfgJson) fed from the SAME Chaquopy
+    // vision_config call that feeds loadConfig — single source of law.
+    // Absent/failed model => roi keys omitted from the prepass envelope
+    // (distinct from empty roi_boxes = model ran, nothing detected).
+    private var appContext: Context? = null
+    private var yolo: NetraYolo? = null
+
+    fun attach(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    fun loadYolo(configJson: String) {
+        if (yolo != null) return
+        val ctx = appContext ?: return
+        try {
+            val cfg = YoloConfig.fromVisionConfig(JSONObject(configJson))
+            yolo = NetraYolo.fromAsset(ctx, "yolo26n_roi.tflite", cfg)
+        } catch (@Suppress("TooGenericException") t: Throwable) {
+            yolo = null   // classical fallback path; roi keys stay absent
+        }
+    }
+
+    private fun yoloRoiEnvelope(work: Bitmap): Pair<JSONArray, JSONObject>? {
+        val model = yolo ?: return null
+        return try {
+            val boxes = model.detect(work)
+            val arr = JSONArray()
+            for (b in boxes) {
+                arr.put(JSONObject()
+                    .put("label", b.label)
+                    .put("score", b.score.toDouble())
+                    .put("x", b.x.toDouble())
+                    .put("y", b.y.toDouble())
+                    .put("w", b.w.toDouble())
+                    .put("h", b.h.toDouble()))
+            }
+            arr to JSONObject().put("w", work.width).put("h", work.height)
+        } catch (@Suppress("TooGenericException") t: Throwable) {
+            null
+        }
+    }
+
     // ---------------------------------------------------------------- API
     fun prepass(imageB64: String, optionsJson: String = "{}"): String {
         try {
@@ -98,10 +144,15 @@ object NetraVision {
         val quality = qualityGate(gray, W, H, workScale)
         val geometry = calibrate(bgr, gray, opts, W, H, workScale)
 
-        return JSONObject()
+        val envelope = JSONObject()
             .put("quality", quality)
             .put("geometry", geometry)
-            .toString()
+        val roi = yoloRoiEnvelope(work)
+        if (roi != null) {
+            envelope.put("roi_boxes", roi.first)
+            envelope.put("roi_frame", roi.second)
+        }
+        return envelope.toString()
     }
 
     // ------------------------------------------------------------- stage 1
