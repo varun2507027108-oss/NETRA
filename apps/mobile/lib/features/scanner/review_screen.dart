@@ -39,9 +39,12 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       // 1. Tokens from ML Kit
       builder.setTokens(processed.tokens);
 
-      // 2. Geometry from prepass
+      // 2. Geometry from prepass — nested envelope (NetraVision.prepass);
+      //    mm_per_px / marker_detected live UNDER 'geometry', not at the
+      //    top level (previous top-level reads silently yielded null).
       final prepass = session.prepassResult ?? {};
-      final mmPerPx = (prepass['mm_per_px'] as num?)?.toDouble();
+      final geometryMap = prepass['geometry'] as Map<String, dynamic>?;
+      final mmPerPx = (geometryMap?['mm_per_px'] as num?)?.toDouble();
 
       builder.setGeometry(
         shape: session.config.shape.code,
@@ -110,9 +113,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     final List<dynamic> promptsRaw = quality?['prompts'] as List<dynamic>? ?? [];
     final List<String> prompts = promptsRaw.map((e) => e.toString()).toList();
 
-    final bool markerDetected = prepass['marker_detected'] as bool? ?? false;
-    final double? mmPerPx = (prepass['mm_per_px'] as num?)?.toDouble();
-    final double? tiltDeg = (prepass['tilt_degrees'] as num?)?.toDouble();
+    final geometry = prepass['geometry'] as Map<String, dynamic>?;
+    final bool markerDetected = geometry?['marker_detected'] as bool? ?? false;
+    final double? mmPerPx = (geometry?['mm_per_px'] as num?)?.toDouble();
+    final double? tiltDeg = (geometry?['tilt_degrees'] as num?)?.toDouble();
 
     return Scaffold(
       appBar: AppBar(
