@@ -132,7 +132,7 @@ class NetraYolo(
                 if (v < 0f || v > 1f) { sigmoidNeeded = true; break@outer }
             }
         }
-        val score: (Float) -> Float = if (sigmoidNeeded) { x -> 1f / (1f + exp(-x)) } else { it }
+        val score: (Float) -> Float = if (sigmoidNeeded) { x -> 1f / (1f + exp(-x)) } else { x -> x }
 
         val cands = ArrayList<RoiBox>(64)
         for (a in 0 until n) {

@@ -67,7 +67,7 @@ chaquopy {
 }
 
 dependencies {
+    implementation("org.tensorflow:tensorflow-lite:2.14.0")
     implementation("org.opencv:opencv:4.10.0")
-    implementation("androidx.concurrent:concurrent-futures:1.2.0")
 }
 
