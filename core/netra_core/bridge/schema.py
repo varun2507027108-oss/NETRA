@@ -29,6 +29,7 @@ from .. import __version__ as CORE_VERSION
 from ..context import (BBox, CheckStatus, GlyphBox, OCRToken,
                        PipelineContext, Verdict)
 from ..rules.citations import citation
+from ..stages.s2_roi_merge import validate_roi_boxes
 
 SCHEMA_VERSION = 1
 CHANNEL = "netra.core"
@@ -247,6 +248,8 @@ class ScanTokensRequest:
     gps: Optional[dict] = None
     device: Optional[dict] = None
     options: dict = field(default_factory=dict)
+    roi_boxes: tuple = ()
+    roi_frame: Optional[dict] = None
 
 
 def _bbox_ok(v) -> bool:
@@ -351,6 +354,31 @@ def scan_tokens_request_from_dict(d: Any) -> tuple:
                 return None, _err("BAD_REQUEST",
                                   f"geometry.rois[{i}].conf must be 0..1")
 
+    # --- v1.4.0: ML ROI boxes (device-authoritative, capture space) -------
+    raw_roi = d.get("roi_boxes")
+    roi_boxes: list = []
+    roi_frame = d.get("roi_frame")
+    if raw_roi is not None:
+        if not isinstance(raw_roi, list):
+            return None, _err("BAD_REQUEST", "roi_boxes must be a list")
+        if raw_roi:
+            fw = roi_frame.get("w") if isinstance(roi_frame, dict) else None
+            fh = roi_frame.get("h") if isinstance(roi_frame, dict) else None
+            if (not isinstance(fw, (int, float)) or isinstance(fw, bool)
+                    or fw <= 0 or not isinstance(fh, (int, float))
+                    or isinstance(fh, bool) or fh <= 0):
+                return None, _err(
+                    "BAD_REQUEST",
+                    "roi_frame {w, h} (positive numbers) is required when "
+                    "roi_boxes is non-empty")
+        try:
+            roi_boxes = validate_roi_boxes(
+                raw_roi, float(fw), float(fh)) if raw_roi else []
+        except ValueError as e:
+            return None, _err("BAD_REQUEST", f"roi_boxes: {e}")
+    elif roi_frame is not None and not isinstance(roi_frame, dict):
+        return None, _err("BAD_REQUEST", "roi_frame must be an object")
+
     raw_glyphs = d.get("glyphs")
     glyphs = []
     if raw_glyphs is not None:
@@ -404,7 +432,9 @@ def scan_tokens_request_from_dict(d: Any) -> tuple:
     return ScanTokensRequest(
         tokens=tuple(tokens), quality=q, geometry=g, glyphs=tuple(glyphs),
         image_b64=image_b64, image_sha256=image_sha, shape_hint=shape_hint,
-        captured_utc=captured, gps=gps, device=device, options=options), None
+        captured_utc=captured, gps=gps, device=device, options=options,
+        roi_boxes=tuple(roi_boxes),
+        roi_frame=(dict(roi_frame) if isinstance(roi_frame, dict) else None)), None
 
 
 # --------------------------------------------------------------- serialization

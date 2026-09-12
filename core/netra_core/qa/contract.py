@@ -32,6 +32,7 @@ from typing import Any
 
 from ..bridge.schema import (ERROR_CODES, RESULT_KEYS, SCHEMA_VERSION,
                              STAGE_NAMES)
+from netra_core.stages.s2_roi_merge import MAX_ROI_BOXES, REQUIRED_LABELS
 
 VERDICTS = ("PASS", "VIOLATION", "RETRY")
 CHECK_STATUS = ("PASS", "FAIL", "NA")
@@ -431,6 +432,32 @@ def validate_scan_tokens_request(d: Any) -> list:
             errs.append(f"{k}: must be a string or null")
     if d.get("shape_hint") and d["shape_hint"] not in SHAPES:
         errs.append("shape_hint: not a shape")
+    roi = d.get("roi_boxes")
+    if roi is not None:
+        if not isinstance(roi, list):
+            errs.append("roi_boxes: must be a list")
+        else:
+            if len(roi) > MAX_ROI_BOXES:
+                errs.append(f"roi_boxes: more than {MAX_ROI_BOXES} boxes")
+            for i, b in enumerate(roi):
+                if not isinstance(b, dict):
+                    errs.append(f"roi_boxes[{i}]: must be an object")
+                    continue
+                if b.get("label") not in REQUIRED_LABELS:
+                    errs.append(f"roi_boxes[{i}].label: unknown roi label")
+                s = b.get("score")
+                if not _num(s) or not 0.0 <= s <= 1.0:
+                    errs.append(f"roi_boxes[{i}].score: must be 0..1")
+                for k in ("x", "y", "w", "h"):
+                    if not _num(b.get(k)):
+                        errs.append(f"roi_boxes[{i}].{k}: number required")
+                if _num(b.get("w")) and b.get("w") <= 0:
+                    errs.append(f"roi_boxes[{i}].w: must be > 0")
+                if _num(b.get("h")) and b.get("h") <= 0:
+                    errs.append(f"roi_boxes[{i}].h: must be > 0")
+            if roi and not isinstance(d.get("roi_frame"), dict):
+                errs.append(
+                    "roi_frame: {w, h} required when roi_boxes is non-empty")
     return errs
 
 

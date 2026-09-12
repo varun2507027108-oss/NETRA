@@ -87,6 +87,31 @@ def record(out_dir: Path) -> dict:
             encoding="utf-8")
         written["scan_tokens_result.json"] = "scan"
 
+        # ---- scan_tokens with ML ROI boxes (v1.4.0) -----------------------
+        fw = max(t.bbox.x + t.bbox.w for t in _DEMO_TOKENS)
+        fh = max(t.bbox.y + t.bbox.h for t in _DEMO_TOKENS)
+        roi_body = dict(tokens_body)
+        roi_body["roi_frame"] = {"w": fw, "h": fh}
+        roi_body["roi_boxes"] = [
+            {"label": "PACKAGE", "score": 0.93, "x": 0.0, "y": 0.0,
+             "w": float(fw), "h": float(fh)},
+            {"label": "PDP", "score": 0.88,
+             "x": 0.05 * fw, "y": 0.05 * fh,
+             "w": 0.5 * fw, "h": 0.6 * fh},
+        ]
+        assert not contract.validate_scan_tokens_request(roi_body)
+        (out_dir / "scan_tokens_request_roi.json").write_text(
+            json.dumps(roi_body, indent=2), encoding="utf-8")
+        written["scan_tokens_request_roi.json"] = "scan_tokens_request"
+        req_roi, rerr = scan_tokens_request_from_dict(roi_body)
+        assert rerr is None
+        roi_result = run_scan_tokens(req_roi)
+        assert not contract.validate_scan_result(roi_result)
+        (out_dir / "scan_tokens_result_roi.json").write_text(
+            json.dumps(roi_result, indent=2, ensure_ascii=False),
+            encoding="utf-8")
+        written["scan_tokens_result_roi.json"] = "scan"
+
         class _OK:
             def post(self, url, payload, headers=None, timeout=10.0):
                 return 200, {"accepted": True, "duplicate": False}

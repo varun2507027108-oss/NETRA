@@ -36,6 +36,7 @@ from .context import BBox, OCRToken, PipelineContext
 from .dossier import crypto
 from .persistence import queue_db
 from .stages import s4_ocr, s5_field_extract, s6_metrology, s7_dossier
+from .stages.s2_roi_merge import merge_roi_boxes
 
 _VISION_STAGE_NAMES = ("s1_frame_quality", "s2_geometry_detect",
                        "s3_calibration")
@@ -318,6 +319,11 @@ def run_scan_tokens(request) -> dict:
                  "bbox": BBox.from_list(r["bbox"]),
                  "conf": float(r.get("conf") or 0.0)}
                 for r in (g.get("rois") or [])]
+    # --- v1.4.0: merge device ML ROI boxes into ctx.rois ------------------
+    # roi_boxes arrive pre-validated + clamped at the schema boundary;
+    # ML is authoritative per label, classical geometry.rois fall back.
+    if request.roi_boxes:
+        ctx.rois = merge_roi_boxes(ctx.rois, list(request.roi_boxes))
     ctx.glyphs = list(request.glyphs)
 
     s4_ocr.run(ctx, tokens=list(request.tokens))

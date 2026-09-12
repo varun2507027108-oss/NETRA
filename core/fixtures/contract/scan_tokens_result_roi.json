@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "scan_id": "844991f9e74847b281f03c3b9bef149d",
+  "scan_id": "d9cb1b266da64c0490d1cd60d693b142",
   "verdict": "VIOLATION",
-  "captured_utc": "2026-09-12T16:22:08.982Z",
-  "completed_utc": "2026-09-12T16:22:09.125Z",
-  "total_ms": 142.72,
+  "captured_utc": "2026-09-12T16:22:09.131Z",
+  "completed_utc": "2026-09-12T16:22:09.212Z",
+  "total_ms": 80.57,
   "timings_ms": {
     "s4_ocr": 0.0,
-    "s5_field_extract": 1.96,
-    "s6_metrology": 0.78,
-    "s7_dossier": 139.97
+    "s5_field_extract": 1.37,
+    "s6_metrology": 0.47,
+    "s7_dossier": 78.74
   },
   "quality": {
     "ok": null,
@@ -24,7 +24,28 @@
     "mm_per_px": 0.04,
     "pda_cm2": 80.0,
     "pda_method": "demo",
-    "rois": []
+    "rois": [
+      {
+        "roi": "PACKAGE",
+        "bbox": [
+          0,
+          0,
+          620,
+          796
+        ],
+        "conf": 0.93
+      },
+      {
+        "roi": "PDP",
+        "bbox": [
+          31,
+          40,
+          310,
+          478
+        ],
+        "conf": 0.88
+      }
+    ]
   },
   "ocr": {
     "engines_used": [
@@ -456,8 +477,8 @@
     "na": 0
   },
   "dossier": {
-    "sha256": "2f24bf33ef8a9e6af4cedfbf0af46798ee923b8fdf19ed9e08201f7e1f487ac3",
-    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmp_69xo_z_\\netra\\dossiers\\netra_844991f9e74847b281f03c3b9bef149d.pdf",
+    "sha256": "84f32ae504883ac4ed5200ec6aaa4725a77924d0b9d7c6ff5ba518cdb1f66be1",
+    "pdf_path": "C:\\Users\\varun\\AppData\\Local\\Temp\\tmp_69xo_z_\\netra\\dossiers\\netra_d9cb1b266da64c0490d1cd60d693b142.pdf",
     "signed": false,
     "signature": null,
     "cert_pem": null,

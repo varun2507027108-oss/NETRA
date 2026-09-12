@@ -1,9 +1,11 @@
-# NETRA Bridge Contract — v1.3.0
+# NETRA Bridge Contract — v1.4.0
 
 Single source of truth for the JSON seam between `netra_core` (Python) and
 the Flutter client. Machine twin: `core/netra_core/bridge/schema.py`.
 Dart twin: `apps/mobile/lib/core/bridge/bridge_models.dart`.
 **If the two implementations disagree, this document wins.**
+
+> **Version Reconciliation:** wire `schema_version`: 1 (integer, unchanged); document revision 1.4.0.
 
 Versioning: additive changes (new optional field, new enum value) bump the
 minor version here and in the changelog. Breaking changes bump
@@ -212,10 +214,10 @@ Never throw across the bridge. Every failure is a full ScanResult with
 }
 ```
 
-## 14. scan_tokens — the B1 device path (v1.3)
+## 14. scan_tokens — the B1 device path (v1.4)
 
 The platform supplies what it owns (camera, ML Kit OCR, quality,
-geometry); Python runs the statutory engine and returns the STANDARD
+geometry, ML ROI detections); Python runs the statutory engine and returns the STANDARD
 ScanResult — 17 keys, same laws, same ledger / dossier / signing
 semantics. `run_scan` (image path) degrades to an in-band
 STAGE_FAILURE envelope on vision-less builds — use this method there.
@@ -226,6 +228,8 @@ STAGE_FAILURE envelope on vision-less builds — use this method there.
 | `tokens` | array | **yes** | OCR LINE tokens `{text, bbox: [x,y,w,h], conf?, engine?, lang?}`; engine defaults `mlkit`; bboxes in SUBMITTED-image pixel space (§5) — the coordinates of the image whose bytes/sha you send |
 | `quality` | object? | no | `{ok?: bool\|null, laplacian_var?, glare_pct?, prompts?: string[], glare_bbox?}` — `ok: false` short-circuits to RETRY with prompts (the s1 gate, platform-side) |
 | `geometry` | object? | no | `{shape?, shape_detected?, mm_per_px?, pda_cm2?, pda_method?, rois?}` — supplying `mm_per_px` + `pda_cm2` activates Rule 7 font checks from token heights |
+| `roi_boxes` | array? | no | `[{label: str, score: float, x: float, y: float, w: float, h: float}]` — ML ROI boxes in capture space (device-authoritative, flat conf 0.25 / iou 0.45, clamped at boundary [0, 0, fw, fh]). Merged into `ctx.rois` taking precedence over classical `geometry.rois` per label with classical fallback. |
+| `roi_frame` | object? | no | `{w: number, h: number}` — dimensions of capture space. Required if `roi_boxes` is non-empty; allowed with empty `roi_boxes` (model ran, 0 detections). |
 | `glyphs` | array? | no | `[{glyph, height_mm, width_mm}]` → Rule 7(3) width law |
 | `image_b64` | string? | no | base64 JPEG/PNG — enables dossier evidence crops (Part D); PIL-decoded, no vision stack needed |
 | `image_sha256` | string? | no | verified when both present → `BAD_REQUEST` on mismatch |
@@ -235,7 +239,14 @@ Every platform block is optional and independently valuable: a
 Dart-only build (ML Kit plugin, no Kotlin vision) sends tokens +
 options and gets verdicts; Rule 7 reports NA until geometry arrives.
 
+### 14.1 ML ROI Boxes Wire Format & Merge Semantics (v1.4.0)
+- **Wire Format:** Top-level optional keys `roi_boxes` and `roi_frame`. Each box has `{label, score, x, y, w, h}` where `label` is one of `PACKAGE`, `PDP`, `BOP`, `PRICE`, `BARCODE`, `score` in `[0.0, 1.0]`, and coordinates are floats in capture space (`w, h > 0`).
+- **Frame Requirements:** `roi_frame` with positive `{w, h}` is required if `roi_boxes` is non-empty. `roi_frame` without `roi_boxes` is accepted.
+- **Clamping:** At the schema validation boundary, coordinates are clamped to `[0.0, 0.0, frame.w, frame.h]`.
+- **Merge Order:** Device ML ROI detections take authority per label over classical `geometry.rois`. Classical geometry ROIs provide fallback for labels absent from ML output. Thresholds are fixed flat `conf: 0.25, iou: 0.45`.
+
 ## 12. Changelog
+- **1.4.0** — additive: scan_tokens gains device-authoritative `roi_boxes` and `roi_frame` channels in capture space; schema validation boundary clamping, ML-authoritative merge with classical fallback in pipeline, fixture recordings, and test suite. Wire `schema_version`: 1 (unchanged).
 - **1.3.2** — additive: checks gain `plain` field (inspector-facing plain
   language phrased in the core); `parsers.py` supports bare `L`/`l` litre
   symbols; bridge schema enforces strict JSON boolean options validation.
