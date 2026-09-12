@@ -58,6 +58,21 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         builder.setQualityObject(Quality.fromJson(qualityMap));
       }
 
+      // 4. ML ROI boxes from prepass (v1.4.0) — top-level keys, forwarded
+      //    verbatim. Keys absent = model unavailable -> classical path.
+      //    Empty roi_boxes + roi_frame present = model ran, nothing found.
+      final roiBoxes = (prepass['roi_boxes'] as List<dynamic>?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList();
+      final roiFrame = prepass['roi_frame'] as Map<String, dynamic>?;
+      if (roiBoxes != null && roiFrame != null) {
+        builder.setRoiBoxes(
+          boxes: roiBoxes,
+          frameW: (roiFrame['w'] as num).toInt(),
+          frameH: (roiFrame['h'] as num).toInt(),
+        );
+      }
+
       // 4. Shape Hint & Options (drives Rule 7 PDA calculation & Table-I font heights)
       builder.setShapeHint(session.config.shape.code);
       builder.setOptions(

@@ -149,6 +149,21 @@ class ScanTokensRequestBuilder {
     return this;
   }
 
+  List<Map<String, dynamic>>? _roiBoxes;
+  Map<String, dynamic>? _roiFrame;
+
+  /// v1.4.0 — ML ROI boxes from the vision prepass, forwarded verbatim.
+  /// Render-and-forward only: zero derivation, zero statutory logic.
+  ScanTokensRequestBuilder setRoiBoxes({
+    required List<Map<String, dynamic>> boxes,
+    required int frameW,
+    required int frameH,
+  }) {
+    _roiBoxes = boxes;
+    _roiFrame = {'w': frameW, 'h': frameH};
+    return this;
+  }
+
   Map<String, dynamic> build() {
     if (tokens.isEmpty) {
       throw const BridgeParseError(
@@ -167,6 +182,12 @@ class ScanTokensRequestBuilder {
     }
     if (geometry != null) {
       out['geometry'] = geometry!.toRequestJson();
+    }
+    if (_roiBoxes != null) {
+      out['roi_boxes'] = _roiBoxes;
+    }
+    if (_roiFrame != null) {
+      out['roi_frame'] = _roiFrame;
     }
     if (glyphs.isNotEmpty) {
       out['glyphs'] = glyphs;
