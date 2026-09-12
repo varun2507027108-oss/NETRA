@@ -46,4 +46,5 @@ backend/*.db
 core/fixtures/synth/
 core/demo_output/
 core/yolo_ds/
-core/models/
+core/models/*
+!core/models/netra_roi.pt

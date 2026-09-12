@@ -52,6 +52,8 @@ def vision_config() -> dict:
     """Statutory thresholds + calibration constants shared with the Kotlin
     prepass. ONE source of truth: config.py values serialize to the JSON
     bundled in the wheel; NetraVision.kt reads the JSON, never hardcodes."""
+    import json
+    from pathlib import Path
     cfg = {k: globals()[k] for k in (
         "LAPLACIAN_VAR_MIN", "GLARE_PIXEL_MAX", "GLARE_AREA_PCT_MAX",
         "ARUCO_MARKER_MM")}
@@ -62,4 +64,19 @@ def vision_config() -> dict:
         "PDA_CYL_COEF": 0.40,
         "PDA_SANITY_CM2": list(PDA_SANITY_CM2),
     })
+
+    golden_path = Path(__file__).resolve().parent.parent / "fixtures" / "yolo" / "golden_v1.json"
+    if golden_path.exists():
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+        cfg["yolo"] = {
+            "input_size": 640,
+            "num_classes": len(golden["class_labels"]),
+            "class_labels": golden["class_labels"],
+            "conf_threshold": golden["thresholds"]["conf"],
+            "iou_threshold": golden["thresholds"]["iou"],
+            "max_detections_per_class": 20,
+            "graph_normalizes_input": golden["graph_normalizes_input"],
+            "output_box_space": golden.get("output_box_space", "normalized_0_1"),
+            "pad_gray": 114,
+        }
     return cfg

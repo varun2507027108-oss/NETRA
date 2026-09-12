@@ -10,5 +10,22 @@
   "PDA_SANITY_CM2": [
     1.0,
     25000.0
-  ]
+  ],
+  "yolo": {
+    "input_size": 640,
+    "num_classes": 5,
+    "class_labels": [
+      "PACKAGE",
+      "PDP",
+      "PRICE",
+      "BARCODE",
+      "BOP"
+    ],
+    "conf_threshold": 0.25,
+    "iou_threshold": 0.45,
+    "max_detections_per_class": 20,
+    "graph_normalizes_input": false,
+    "output_box_space": "normalized_0_1",
+    "pad_gray": 114
+  }
 }
