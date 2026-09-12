@@ -47,3 +47,15 @@ def test_provider_golden_input_parity():
     assert len(overlap) >= len(golden_classes) - 1, (
         f"Detected {detected_classes} vs golden {golden_classes}"
     )
+
+
+def test_class_labels_pinned_to_config_and_golden():
+    """Hardcoded CLASS_LABELS is a checked constant, not a silent one."""
+    pytest.importorskip("ultralytics")
+    from netra_core.contrib.yolo_provider import CLASS_LABELS
+
+    cfg = json.loads((ROOT / "core" / "netra_core" / "vision_config.json").read_text())["yolo"]
+    golden = json.loads(GOLDEN_PATH.read_text())
+    assert list(CLASS_LABELS) == cfg["class_labels"] == golden["class_labels"]
+
+

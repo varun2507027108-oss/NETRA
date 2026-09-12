@@ -116,6 +116,16 @@ def run(ctx: PipelineContext, frame_bgr, options=None) -> GeometryReport:
         notes.append("no confident package silhouette — full frame")
 
     ctx.rois = rois
+
+    # --- ML ROI hook (netra_roi round 1) -----------------------------------
+    # roi_boxes: wire-format ML detections in CAPTURE space, validated and
+    # merged deterministically; absent -> classical-only path unchanged.
+    roi_boxes = (options or {}).get("roi_boxes") if options else None
+    if roi_boxes:
+        from netra_core.stages.s2_roi_merge import merge_roi_boxes
+        ctx.rois = merge_roi_boxes(ctx.rois, roi_boxes)
+    # ----------------------------------------------------------------------
+
     ctx.shape_detected = suggestion
     ctx.add_stage("s2_geometry_detect", True,
                   (time.perf_counter() - t0) * 1000.0)

@@ -3,10 +3,12 @@ name: android-compile
 on:
   push:
     paths:
+      - ".github/workflows/android-compile.yml"
       - "apps/mobile/android/**"
       - "core/**"                 # netra_core is embedded via Chaquopy — core changes can break the app build
   pull_request:
     paths:
+      - ".github/workflows/android-compile.yml"
       - "apps/mobile/android/**"
       - "core/**"
   workflow_dispatch:
