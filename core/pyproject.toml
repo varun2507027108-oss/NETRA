@@ -12,6 +12,7 @@ dependencies = []   # the core must install ANYWHERE — including Chaquopy/Andr
                     # spike then decides which of them the device round can carry.
 
 [project.optional-dependencies]
+ml = ["ultralytics>=8.0"]
 dossier = ["reportlab>=4.0", "pillow>=10.0"]
 ocr = ["pytesseract>=0.3.10"]
 bridge = ["fastapi>=0.110", "uvicorn>=0.29"]
