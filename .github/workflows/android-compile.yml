@@ -28,6 +28,14 @@ jobs:
         with:
           channel: stable
           flutter-version: "3.47.2"
+      - name: Write local.properties (flutter.sdk for settings.gradle.kts)
+        run: |
+          FLUTTER_SDK_PATH="${FLUTTER_ROOT:-$(dirname "$(dirname "$(which flutter)")")}"
+          echo "flutter.sdk=$FLUTTER_SDK_PATH" > local.properties
+          cat local.properties
+      - name: Resolve Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
