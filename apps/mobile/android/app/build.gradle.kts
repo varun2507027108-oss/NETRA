@@ -28,6 +28,7 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -67,7 +68,10 @@ chaquopy {
 }
 
 dependencies {
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("com.google.ai.edge.litert:litert:1.0.1")
+    implementation("com.google.ai.edge.litert:litert-api:1.0.1")
     implementation("org.opencv:opencv:4.10.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
 }
 

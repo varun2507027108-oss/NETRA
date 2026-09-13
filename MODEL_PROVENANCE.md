@@ -21,6 +21,7 @@
   (fp32-level, effectively bit-exact)
 - Golden: core/fixtures/yolo/golden_v1.json · re-run parity after ANY model
   change; golden image: core/fixtures/yolo/golden_input.png
+- Device runtime: com.google.ai.edge.litert:litert:1.0.1 (official TFLite successor; same org.tensorflow.lite.Interpreter package) — pinned after the 2.13/2.14 duplicate-namespace manifest collision. On-device raw-tensor parity 1.6e-6 vs golden (NetraYoloGoldenTest, CPH2467). Warm inference 296–360 ms mean (CPU, 4 threads).
 
 ## License flag (read before distribution)
 Ultralytics is AGPL-3.0; weights trained through it are arguably

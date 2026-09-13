@@ -105,7 +105,7 @@ class NetraYolo(
         return buf
     }
 
-    internal fun letterbox(src: Bitmap): Pair<Bitmap, LetterboxMeta> {
+    fun letterbox(src: Bitmap): Pair<Bitmap, LetterboxMeta> {
         val s = cfg.inputSize
         val gain = minOf(s.toFloat() / src.width, s.toFloat() / src.height)
         val nw = (src.width * gain).roundToInt().coerceIn(1, s)

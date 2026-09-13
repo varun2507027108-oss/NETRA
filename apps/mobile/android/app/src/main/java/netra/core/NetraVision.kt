@@ -87,6 +87,7 @@ object NetraVision {
             val cfg = YoloConfig.fromVisionConfig(JSONObject(configJson))
             yolo = NetraYolo.fromAsset(ctx, "yolo26n_roi.tflite", cfg)
         } catch (@Suppress("TooGenericException") t: Throwable) {
+            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", t)
             yolo = null   // classical fallback path; roi keys stay absent
         }
     }
@@ -107,6 +108,7 @@ object NetraVision {
             }
             arr to JSONObject().put("w", work.width).put("h", work.height)
         } catch (@Suppress("TooGenericException") t: Throwable) {
+            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", t)
             null
         }
     }
