@@ -5,11 +5,16 @@ import '../../../core/theme/app_typography.dart';
 
 /// Single statutory check card (Brief §4).
 /// [status dot 8dp] [rule chip e.g. "6(1)"] [status word]
-/// Message / Expandable "Statutory basis ▾" citation.
+/// Message / Expandable "Statutory basis ▾" citation / "View evidence →" link.
 class CheckTile extends StatefulWidget {
   final CheckItem check;
+  final VoidCallback? onEvidenceTap;
 
-  const CheckTile({super.key, required this.check});
+  const CheckTile({
+    super.key,
+    required this.check,
+    this.onEvidenceTap,
+  });
 
   @override
   State<CheckTile> createState() => _CheckTileState();
@@ -38,17 +43,24 @@ class _CheckTileState extends State<CheckTile> {
       CheckStatus.na => 'NA',
     };
 
+    final bool hasEvidence = widget.check.evidenceBbox != null && widget.onEvidenceTap != null;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border, width: 1),
+        border: Border.all(
+          color: widget.check.status == CheckStatus.fail
+              ? AppColors.verdictRed.withValues(alpha: 0.5)
+              : AppColors.border,
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row: status dot + rule chip + status word
+          // Header row: status dot + rule chip + status word + optional evidence link
           Row(
             children: [
               Container(
@@ -88,6 +100,29 @@ class _CheckTileState extends State<CheckTile> {
                   ),
                 ),
               ),
+              const Spacer(),
+              if (hasEvidence)
+                InkWell(
+                  onTap: widget.onEvidenceTap,
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.crop_free, size: 14, color: AppColors.navy),
+                        const SizedBox(width: 4),
+                        Text(
+                          'View evidence →',
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.navy,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 8),

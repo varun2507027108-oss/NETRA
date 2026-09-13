@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bridge/bridge_models.dart';
+import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import 'widgets/verdict_banner.dart';
@@ -8,16 +10,23 @@ import 'widgets/check_tile.dart';
 import 'widgets/fields_table.dart';
 import 'widgets/geometry_card.dart';
 import 'widgets/exemption_card.dart';
+import 'widgets/evidence_viewer.dart';
 
 /// Complete Report Screen (Brief §5.5).
-/// Renders statutory inspection results with full evidentiary detail.
-class ReportScreen extends StatelessWidget {
+/// Renders statutory inspection results with verdict-first hierarchy and evidence linkage.
+class ReportScreen extends ConsumerWidget {
   final ScanResult result;
 
   const ReportScreen({super.key, required this.result});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final processedImage = ref.watch(scanSessionProvider).processedImage;
+
+    // Split checks into failed/actionable vs passed/na for instant inspector triage
+    final failedChecks = result.checks.where((c) => c.status == CheckStatus.fail).toList();
+    final otherChecks = result.checks.where((c) => c.status != CheckStatus.fail).toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inspection Report'),
@@ -40,45 +49,7 @@ class ReportScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
-          // 1. Report Header: Scan ID + Timestamps
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('SCAN IDENTIFIER', style: AppTypography.sectionLabel),
-                    Text(
-                      '${result.totalMs.toStringAsFixed(1)} ms',
-                      style: AppTypography.monoSmall.copyWith(color: AppColors.navy),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                SelectableText(
-                  result.scanId.isEmpty ? 'UNASSIGNED' : result.scanId,
-                  style: AppTypography.mono.copyWith(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Text('Captured UTC: ', style: AppTypography.caption),
-                    Text(result.capturedUtc, style: AppTypography.monoSmall),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 2. Verdict Banner & Summary Strip
+          // 1. Verdict Banner & Statutory Summary (Immediate primary answer)
           VerdictBanner(
             verdict: result.verdict,
             passCount: result.summary.pass,
@@ -87,66 +58,108 @@ class ReportScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // 3. RETRY / In-Band Error Guidance (if applicable)
+          // 2. RETRY / In-Band Error Guidance (if applicable)
           if (result.verdict == Verdict.retry || result.error != null) ...[
             _buildRetryGuidanceCard(context),
             const SizedBox(height: 16),
           ],
 
-          // 4. Dossier Card (if present)
-          if (result.dossier != null) ...[
-            _buildDossierCard(context, result.dossier!),
-            const SizedBox(height: 16),
-          ],
-
-          // 5. Geometry Card (if present)
-          if (result.geometry != null) ...[
-            GeometryCard(geometry: result.geometry!),
-            const SizedBox(height: 16),
-          ],
-
-          // 6. Exemption Card (if present)
-          if (result.exemption != null) ...[
-            ExemptionCard(exemption: result.exemption!),
-            const SizedBox(height: 16),
-          ],
-
-          // 7. Statutory Checks List
-          const Text('STATUTORY DECLARATION AUDIT', style: AppTypography.sectionLabel),
-          const SizedBox(height: 8),
-          if (result.checks.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border, width: 1),
-              ),
-              child: const Text('No checks evaluated.', style: AppTypography.body),
-            )
-          else
-            ...result.checks.map((check) => Padding(
+          // 3. Failed Checks / Violations Section (Highlight what needs attention)
+          if (failedChecks.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.error_outline, size: 16, color: AppColors.verdictRed),
+                const SizedBox(width: 6),
+                Text(
+                  'STATUTORY VIOLATIONS DETECTED (${failedChecks.length})',
+                  style: AppTypography.sectionLabel.copyWith(color: AppColors.verdictRed),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...failedChecks.map((check) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: CheckTile(check: check),
+                  child: CheckTile(
+                    check: check,
+                    onEvidenceTap: processedImage != null && check.evidenceBbox != null
+                        ? () => EvidenceViewerDialog.show(
+                              context,
+                              check: check,
+                              processedImage: processedImage,
+                            )
+                        : null,
+                  ),
                 )),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+          ],
 
-          // 8. Extracted Fields Table
+          // 4. All Other Statutory Checks
+          if (otherChecks.isNotEmpty) ...[
+            Text(
+              failedChecks.isNotEmpty
+                  ? 'COMPLIANT & EXEMPT CHECKS (${otherChecks.length})'
+                  : 'STATUTORY DECLARATION AUDIT',
+              style: AppTypography.sectionLabel,
+            ),
+            const SizedBox(height: 8),
+            ...otherChecks.map((check) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: CheckTile(
+                    check: check,
+                    onEvidenceTap: processedImage != null && check.evidenceBbox != null
+                        ? () => EvidenceViewerDialog.show(
+                              context,
+                              check: check,
+                              processedImage: processedImage,
+                            )
+                        : null,
+                  ),
+                )),
+            const SizedBox(height: 16),
+          ],
+
+          // 5. Extracted Fields Table
           const Text('EXTRACTED FIELD DECLARATIONS', style: AppTypography.sectionLabel),
           const SizedBox(height: 8),
           FieldsTable(fields: result.fields),
           const SizedBox(height: 16),
 
-          // 9. Engine Timings Expander
-          _buildTimingsExpander(),
+          // 6. Dossier Card (if present)
+          if (result.dossier != null) ...[
+            _buildDossierCard(context, result.dossier!),
+            const SizedBox(height: 16),
+          ],
+
+          // 7. Geometry Card (if present)
+          if (result.geometry != null) ...[
+            GeometryCard(geometry: result.geometry!),
+            const SizedBox(height: 16),
+          ],
+
+          // 8. Exemption Card (if present)
+          if (result.exemption != null) ...[
+            ExemptionCard(exemption: result.exemption!),
+            const SizedBox(height: 16),
+          ],
+
+          // 9. Processing & Audit Details (Scan ID, Captures UTC, Pipeline Timings)
+          _buildInspectionMetadataAccordion(),
           const SizedBox(height: 24),
 
-          // 10. Actions
-          ElevatedButton(
+          // 10. Complete Inspection Action
+          ElevatedButton.icon(
+            icon: const Icon(Icons.check_circle_outline, size: 20),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-            child: const Text('Complete Inspection'),
+            label: const Text(
+              'COMPLETE INSPECTION',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -183,8 +196,10 @@ class ReportScreen extends StatelessWidget {
               style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
-            Text('Error code: ${err.code}${err.stage != null ? " (${err.stage})" : ""}',
-                style: AppTypography.monoSmall),
+            Text(
+              'Error code: ${err.code}${err.stage != null ? " (${err.stage})" : ""}',
+              style: AppTypography.monoSmall,
+            ),
           ],
           if (prompts.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -265,7 +280,7 @@ class ReportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTimingsExpander() {
+  Widget _buildInspectionMetadataAccordion() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -273,9 +288,24 @@ class ReportScreen extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1),
       ),
       child: ExpansionTile(
-        title: const Text('PIPELINE STAGE TIMINGS', style: AppTypography.sectionLabel),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        title: const Text('PROCESSING DETAILS & TIMINGS', style: AppTypography.sectionLabel),
+        subtitle: Text(
+          'Scan ID: ${result.scanId.isEmpty ? "UNASSIGNED" : result.scanId} • ${result.totalMs.toStringAsFixed(1)} ms',
+          style: AppTypography.monoSmall.copyWith(color: AppColors.inkSecondary),
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
         children: [
+          Row(
+            children: [
+              const Text('Captured UTC: ', style: AppTypography.caption),
+              Text(result.capturedUtc, style: AppTypography.monoSmall),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          const Text('Pipeline Stage Timings', style: AppTypography.caption),
+          const SizedBox(height: 6),
           Table(
             columnWidths: const {
               0: FlexColumnWidth(2),
@@ -285,11 +315,11 @@ class ReportScreen extends StatelessWidget {
               return TableRow(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Text(entry.key, style: AppTypography.body),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Text(entry.key, style: AppTypography.body.copyWith(fontSize: 13)),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Text(
                       '${entry.value.toStringAsFixed(1)} ms',
                       textAlign: TextAlign.right,

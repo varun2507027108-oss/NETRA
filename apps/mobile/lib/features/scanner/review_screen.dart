@@ -5,15 +5,16 @@ import '../../core/bridge/request_builder.dart';
 import '../../core/state/bridge_provider.dart';
 import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_typography.dart';
 import '../../core/util/bbox_painter.dart';
 import '../report/report_screen.dart';
 import 'widgets/auditing_overlay.dart';
+import 'widgets/quality_summary.dart';
+import 'widgets/technical_details.dart';
 
 /// Post-capture Review Screen (Brief §5.3).
-/// - Processed image preview with debug OCR box overlay toggle (coordinate space verification)
-/// - Vision prepass chips: marker detected, scale mm/px, tilt, blur, glare
-/// - Quality gate evaluation: if quality.ok == false, shows RETRY view with prompts
+/// - Quality gate evaluation: Actionable Retake vs Proceed
+/// - Quality Summary Card with clear check status
+/// - Expandable Technical Details Tile (keeps raw token count & diagnostics out of way)
 /// - "Run audit" primary button triggers honest indeterminate audit overlay & scan_tokens call
 class ReviewScreen extends ConsumerStatefulWidget {
   const ReviewScreen({super.key});
@@ -40,8 +41,6 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       builder.setTokens(processed.tokens);
 
       // 2. Geometry from prepass — nested envelope (NetraVision.prepass);
-      //    mm_per_px / marker_detected live UNDER 'geometry', not at the
-      //    top level (previous top-level reads silently yielded null).
       final prepass = session.prepassResult ?? {};
       final geometryMap = prepass['geometry'] as Map<String, dynamic>?;
       final mmPerPx = (geometryMap?['mm_per_px'] as num?)?.toDouble();
@@ -58,9 +57,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         builder.setQualityObject(Quality.fromJson(qualityMap));
       }
 
-      // 4. ML ROI boxes from prepass (v1.4.0) — top-level keys, forwarded
-      //    verbatim. Keys absent = model unavailable -> classical path.
-      //    Empty roi_boxes + roi_frame present = model ran, nothing found.
+      // 4. ML ROI boxes from prepass (v1.4.0)
       final roiBoxes = (prepass['roi_boxes'] as List<dynamic>?)
           ?.whereType<Map<String, dynamic>>()
           .toList();
@@ -133,16 +130,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     final double? mmPerPx = (geometry?['mm_per_px'] as num?)?.toDouble();
     final double? tiltDeg = (geometry?['tilt_degrees'] as num?)?.toDouble();
 
+    final roiBoxes = prepass['roi_boxes'] as List<dynamic>?;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Review Capture'),
-        actions: [
-          IconButton(
-            icon: Icon(_showOcrBoxes ? Icons.visibility : Icons.visibility_off),
-            tooltip: 'Toggle OCR BBoxes',
-            onPressed: () => setState(() => _showOcrBoxes = !_showOcrBoxes),
-          ),
-        ],
+        title: const Text('Review Capture Quality'),
       ),
       body: Stack(
         children: [
@@ -178,135 +170,92 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              // 2. OCR Tokens & Verification Notice
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${processed.tokens.length} OCR TOKENS EXTRACTED',
-                    style: AppTypography.sectionLabel,
-                  ),
-                  Text(
-                    '${processed.width}×${processed.height} px',
-                    style: AppTypography.monoSmall,
-                  ),
-                ],
+              // 2. Actionable Quality Gate Summary
+              QualitySummaryCard(
+                qualityOk: qualityOk,
+                markerDetected: markerDetected,
+                mmPerPx: mmPerPx,
+                prompts: prompts,
               ),
               const SizedBox(height: 12),
 
-              // 3. Vision Prepass Chips Strip
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _buildChip(
-                    label: markerDetected
-                        ? 'Fiducial: ${mmPerPx?.toStringAsFixed(4)} mm/px'
-                        : 'No Fiducial (Font checks NA)',
-                    color: markerDetected ? AppColors.verdictGreen : AppColors.naSlate,
-                    bg: markerDetected ? AppColors.verdictGreenBg : AppColors.naSlateBg,
-                  ),
-                  if (tiltDeg != null && markerDetected)
-                    _buildChip(
-                      label: 'Tilt: ${tiltDeg.toStringAsFixed(1)}°',
-                      color: AppColors.navy,
-                      bg: AppColors.monoBg,
-                    ),
-                  _buildChip(
-                    label: 'Shape: ${session.config.shape.label}',
-                    color: AppColors.navy,
-                    bg: AppColors.monoBg,
-                  ),
-                ],
+              // 3. Expandable Technical Diagnostics
+              TechnicalDetailsTile(
+                tokenCount: processed.tokens.length,
+                imageWidth: processed.width,
+                imageHeight: processed.height,
+                packageShape: session.config.shape.label,
+                mmPerPx: mmPerPx,
+                tiltDeg: tiltDeg,
+                roiCount: roiBoxes?.length,
+                showOcrBoxes: _showOcrBoxes,
+                onToggleOcrBoxes: (val) => setState(() => _showOcrBoxes = val),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // 4. Quality Gate Status
-              if (!qualityOk) ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.retryAmberBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.retryAmber, width: 1),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.warning_amber, color: AppColors.retryAmber, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            'IMAGE QUALITY FAILED',
-                            style: AppTypography.heading.copyWith(color: AppColors.retryAmber),
-                          ),
-                        ],
+              // 4. Actions: Hierarchy prioritized by quality status
+              if (qualityOk)
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('RETAKE'),
                       ),
-                      const SizedBox(height: 8),
-                      ...prompts.map((p) => Padding(
-                            padding: const EdgeInsets.only(left: 6, bottom: 2),
-                            child: Text('• $p', style: AppTypography.body),
-                          )),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // 5. Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('RETAKE'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.verified, size: 18),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.navy,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: _onRunAudit,
+                        label: const Text(
+                          'RUN AUDIT',
+                          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.refresh, size: 18),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: qualityOk ? AppColors.navy : AppColors.retryAmber,
+                        backgroundColor: AppColors.navy,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                      label: const Text(
+                        'RETAKE CAPTURE (RECOMMENDED)',
+                        style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.retryAmber,
+                        side: const BorderSide(color: AppColors.retryAmber),
                       ),
                       onPressed: _onRunAudit,
-                      child: Text(qualityOk ? 'RUN AUDIT' : 'PROCEED ANYWAY'),
+                      child: const Text('PROCEED WITH INCOMPLETE DATA'),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
 
-          // 6. Honest Indeterminate Auditing Overlay
+          // 5. Honest Indeterminate Auditing Overlay
           if (_isAuditing) const AuditingOverlay(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildChip({
-    required String label,
-    required Color color,
-    required Color bg,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
       ),
     );
   }

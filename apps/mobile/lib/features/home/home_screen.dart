@@ -5,11 +5,14 @@ import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../scan_setup/scan_setup_screen.dart';
+import 'widgets/recent_inspections.dart';
 
 /// Field tool Home Screen (Brief §5.1).
-/// Big bordered tile "New inspection" (navy, 72dp) -> scan_setup.
-/// Below: queue summary card (total/pending/signed/dossiers), last sync line,
-/// Sync now text button, and capability status.
+/// Task-first hierarchy:
+/// 1. Prominent Hero Action: "+ NEW INSPECTION" (72dp, navy, immediately accessible)
+/// 2. Active session / Recent inspection preview
+/// 3. Core handshake status (compact)
+/// 4. Offline Evidence Ledger metrics (compact cards)
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +20,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pingAsync = ref.watch(pingStatusProvider);
     final queueAsync = ref.watch(queueStatusProvider);
+    final session = ref.watch(scanSessionProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -46,37 +50,68 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
-          // 1. Core Handshake Banner
+          // 1. Task-First Hero: Big 72dp New Inspection Button
+          SizedBox(
+            height: 72,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.navy,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: () {
+                ref.read(scanSessionProvider.notifier).resetSession();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ScanSetupScreen()),
+                );
+              },
+              icon: const Icon(Icons.camera_alt, size: 28, color: Colors.white),
+              label: const Text(
+                'NEW INSPECTION',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 2. Recent Inspection Strip
+          const Text('RECENT INSPECTION', style: AppTypography.sectionLabel),
+          const SizedBox(height: 8),
+          RecentInspectionsStrip(lastResult: session.scanResult),
+          const SizedBox(height: 20),
+
+          // 3. Core Handshake Banner (Compact)
           pingAsync.when(
             data: (ping) {
               return Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.border, width: 1),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.verified, color: AppColors.verdictGreen, size: 20),
-                    const SizedBox(width: 10),
+                    const Icon(Icons.verified, color: AppColors.verdictGreen, size: 18),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'CORE CONNECTED (v${ping.coreVersion})',
-                            style: AppTypography.sectionLabel.copyWith(color: AppColors.verdictGreen),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Channel: ${ping.channel} · Stages: ${ping.capabilities.stagesImplemented.length} implemented',
-                            style: AppTypography.caption,
-                          ),
-                        ],
+                      child: Text(
+                        'Core v${ping.coreVersion} connected (${ping.capabilities.stagesImplemented.length} stages)',
+                        style: AppTypography.caption.copyWith(fontWeight: FontWeight.w500),
                       ),
+                    ),
+                    Text(
+                      ping.channel.toUpperCase(),
+                      style: AppTypography.monoSmall.copyWith(color: AppColors.inkSecondary),
                     ),
                   ],
                 ),
@@ -84,16 +119,16 @@ class HomeScreen extends ConsumerWidget {
             },
             loading: () => const LinearProgressIndicator(minHeight: 2),
             error: (err, _) => Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: AppColors.verdictRedBg,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.verdictRed, width: 1),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: AppColors.verdictRed, size: 20),
-                  const SizedBox(width: 10),
+                  const Icon(Icons.error_outline, color: AppColors.verdictRed, size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Core ping failed: $err',
@@ -106,59 +141,22 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
 
-          // 2. Big 72dp New Inspection Button
-          SizedBox(
-            height: 72,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.navy,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: AppColors.navy, width: 1),
-                ),
-              ),
-              onPressed: () {
-                ref.read(scanSessionProvider.notifier).resetSession();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ScanSetupScreen()),
-                );
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt, size: 28, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text(
-                    'NEW INSPECTION',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // 3. Queue & Ledger Status Card
+          // 4. Offline Evidence Ledger (Compact metrics grid)
           const Text('OFFLINE EVIDENCE LEDGER', style: AppTypography.sectionLabel),
           const SizedBox(height: 8),
           queueAsync.when(
             data: (q) => Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border, width: 1),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildCountItem('TOTAL SCANS', q.total),
                       _buildCountItem('PENDING SYNC', q.pendingSync),
@@ -166,16 +164,16 @@ class HomeScreen extends ConsumerWidget {
                       _buildCountItem('DOSSIERS', q.dossiers),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Divider(),
                   const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       TextButton.icon(
                         onPressed: () => ref.read(queueStatusProvider.notifier).refresh(),
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Refresh ledger'),
+                        icon: const Icon(Icons.refresh, size: 14),
+                        label: const Text('Refresh ledger', style: TextStyle(fontSize: 12)),
                       ),
                       pingAsync.maybeWhen(
                         data: (p) => p.capabilities.sync
@@ -185,18 +183,11 @@ class HomeScreen extends ConsumerWidget {
                                     const SnackBar(content: Text('Sync gateway configured')),
                                   );
                                 },
-                                child: const Text('Sync now'),
+                                child: const Text('Sync now', style: TextStyle(fontSize: 12)),
                               )
-                            : Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.monoBg,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Sync unavailable in this build',
-                                  style: AppTypography.caption,
-                                ),
+                            : Text(
+                                'Sync offline',
+                                style: AppTypography.caption.copyWith(color: AppColors.inkSecondary),
                               ),
                         orElse: () => const SizedBox.shrink(),
                       ),
@@ -205,15 +196,17 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            loading: () => const Center(child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(color: AppColors.navy),
-            )),
-            error: (err, _) => Text('Failed to load queue status: $err', style: AppTypography.caption),
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(color: AppColors.navy),
+              ),
+            ),
+            error: (err, _) => Text('Failed to load queue: $err', style: AppTypography.caption),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // 4. Statutory Disclaimer Footer
+          // 5. Statutory Disclaimer Footer
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -227,6 +220,7 @@ class HomeScreen extends ConsumerWidget {
               style: AppTypography.caption,
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -236,9 +230,9 @@ class HomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(count.toString(), style: AppTypography.heading.copyWith(fontSize: 18)),
+        Text(count.toString(), style: AppTypography.heading.copyWith(fontSize: 17)),
         const SizedBox(height: 2),
-        Text(label, style: AppTypography.caption.copyWith(fontSize: 10)),
+        Text(label, style: AppTypography.caption.copyWith(fontSize: 9)),
       ],
     );
   }

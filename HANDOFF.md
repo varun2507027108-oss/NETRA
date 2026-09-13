@@ -37,6 +37,7 @@ Backlog: assembleDebug CI gate; int8 model path; Dart CI job.
 - `reset_demo_state`: `python core/scripts/reset_demo_state.py`
 - `bench_pipeline`: `python core/scripts/bench_pipeline.py`
 - `record_contract_fixtures`: `python core/scripts/record_contract_fixtures.py`
+- `refresh_wheel`: `python tools/refresh_wheel.py` (mandatory on any `netra_core` change before rebuilding APK)
 - `export_vision_config`: `python tools/export_vision_config.py` (or `python core/scripts/export_vision_config.py`)
 - `record_yolo_golden`: `python tools/record_yolo_golden.py`
 - `make_results_pdf`: `python tools/make_results_pdf.py`

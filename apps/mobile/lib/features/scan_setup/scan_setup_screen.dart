@@ -4,14 +4,14 @@ import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../scanner/scanner_screen.dart';
+import 'widgets/package_step.dart';
+import 'widgets/conditions_step.dart';
+import 'widgets/confirmation_step.dart';
 
-/// Scan Setup Screen (Brief §5.2).
-/// All inspector options:
-/// - Package shape segmented control
-/// - Dimensions per shape (height, width, diameter, total area)
-/// - Commodity name
-/// - Toggles: Blown/molded print, Institutional supply, Fast food, Dossier on PASS, Attach GPS
-/// - Advanced: Fiducial marker size (mm)
+/// 3-Step Setup Wizard Screen (Brief §5.2).
+/// Step 1: Package Shape & Dynamic Dimensions
+/// Step 2: Commodity & Statutory Conditions
+/// Step 3: Confirmation & Calibration Settings
 class ScanSetupScreen extends ConsumerStatefulWidget {
   const ScanSetupScreen({super.key});
 
@@ -20,6 +20,9 @@ class ScanSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
+  final PageController _pageController = PageController();
+  int _currentStep = 0;
+
   late PackageShape _shape;
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _widthController = TextEditingController();
@@ -33,7 +36,6 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
   bool _fastFood = false;
   bool _dossierOnPass = false;
   bool _attachGps = true;
-  bool _calibrationExpanded = false;
 
   @override
   void initState() {
@@ -55,6 +57,7 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
 
   @override
   void dispose() {
+    _pageController.dispose();
     _heightController.dispose();
     _widthController.dispose();
     _diameterController.dispose();
@@ -62,6 +65,62 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
     _commodityController.dispose();
     _fiducialController.dispose();
     super.dispose();
+  }
+
+  String get _dimensionsSummary {
+    switch (_shape) {
+      case PackageShape.rectangular:
+        final h = _heightController.text.trim();
+        final w = _widthController.text.trim();
+        if (h.isNotEmpty && w.isNotEmpty) return '$h cm × $w cm';
+        if (h.isNotEmpty) return 'H: $h cm';
+        return 'Optical calibration (fiducial)';
+      case PackageShape.cylindrical:
+      case PackageShape.bottle:
+        final h = _heightController.text.trim();
+        final d = _diameterController.text.trim();
+        if (h.isNotEmpty && d.isNotEmpty) return 'H: $h cm, Dia: $d cm';
+        if (h.isNotEmpty) return 'H: $h cm';
+        return 'Optical calibration (fiducial)';
+      case PackageShape.pouch:
+      case PackageShape.other:
+        final a = _areaController.text.trim();
+        if (a.isNotEmpty) return 'Area: $a cm²';
+        return 'Optical calibration (fiducial)';
+    }
+  }
+
+  List<String> get _activeConditions {
+    final list = <String>[];
+    if (_blown) list.add('Blown/Molded (Rule 9(1))');
+    if (_institutional) list.add('Institutional Supply (Rule 3)');
+    if (_fastFood) list.add('Fast Food / Restaurant (Rule 26)');
+    if (_attachGps) list.add('GPS Signed');
+    return list;
+  }
+
+  void _onNextStep() {
+    if (_currentStep < 2) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep += 1);
+    } else {
+      _onStartCamera();
+    }
+  }
+
+  void _onPrevStep() {
+    if (_currentStep > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+      setState(() => _currentStep -= 1);
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
   void _onStartCamera() {
@@ -97,206 +156,109 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inspection Setup'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                'Step ${_currentStep + 1} of 3',
+                style: AppTypography.monoSmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkSecondary,
+                ),
+              ),
+            ),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4),
+          child: LinearProgressIndicator(
+            value: (_currentStep + 1) / 3.0,
+            backgroundColor: AppColors.border,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.navy),
+            minHeight: 4,
+          ),
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // 1. Package Shape Segmented Control
-          const Text('PACKAGE SHAPE', style: AppTypography.sectionLabel),
-          const SizedBox(height: 8),
-          SegmentedButton<PackageShape>(
-            segments: PackageShape.values
-                .map((s) => ButtonSegment(value: s, label: Text(s.label)))
-                .toList(),
-            selected: {_shape},
-            onSelectionChanged: (set) {
-              setState(() {
-                _shape = set.first;
-              });
-            },
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: AppColors.navy,
-              selectedForegroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 2. Physical Dimensions Section
-          const Text('PHYSICAL DIMENSIONS (CM)', style: AppTypography.sectionLabel),
-          const SizedBox(height: 4),
-          const Text(
-            'Measure with a ruler — drives Rule 7 Principal Display Area (PDA) calculation & Table-I minimum font heights.',
-            style: AppTypography.caption,
-          ),
-          const SizedBox(height: 12),
-          _buildDimensionInputs(),
-          const SizedBox(height: 20),
-
-          // 3. Commodity Section
-          const Text('COMMODITY (OPTIONAL)', style: AppTypography.sectionLabel),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _commodityController,
-            decoration: const InputDecoration(
-              hintText: "e.g. 'cement', 'pan masala' — exemption rules use it",
-              labelText: 'Commodity description',
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 4. Statutory Toggles
-          const Text('STATUTORY DECLARATION OPTIONS', style: AppTypography.sectionLabel),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('Blown / molded / perforated print', style: AppTypography.body),
-                  subtitle: const Text('Table-I column 2 minimum font sizes apply', style: AppTypography.caption),
-                  value: _blown,
-                  onChanged: (v) => setState(() => _blown = v),
-                  activeThumbColor: AppColors.navy,
-                ),
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('Institutional consumer package', style: AppTypography.body),
-                  subtitle: const Text('Rule 26 exemption from retail declarations', style: AppTypography.caption),
-                  value: _institutional,
-                  onChanged: (v) => setState(() => _institutional = v),
-                  activeThumbColor: AppColors.navy,
-                ),
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('Fast food packaging', style: AppTypography.body),
-                  subtitle: const Text('Rule 26 exemption for restaurant parcels', style: AppTypography.caption),
-                  value: _fastFood,
-                  onChanged: (v) => setState(() => _fastFood = v),
-                  activeThumbColor: AppColors.navy,
-                ),
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('Generate dossier on PASS', style: AppTypography.body),
-                  subtitle: const Text('Creates signed audit trail for compliant packs', style: AppTypography.caption),
-                  value: _dossierOnPass,
-                  onChanged: (v) => setState(() => _dossierOnPass = v),
-                  activeThumbColor: AppColors.navy,
-                ),
-                const Divider(),
-                SwitchListTile(
-                  title: const Text('Attach GPS metadata', style: AppTypography.body),
-                  subtitle: const Text('Embed inspection coordinates into audit record', style: AppTypography.caption),
-                  value: _attachGps,
-                  onChanged: (v) => setState(() => _attachGps = v),
-                  activeThumbColor: AppColors.navy,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // 5. Calibration Expander
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: ExpansionTile(
-              title: const Text('OPTICAL CALIBRATION', style: AppTypography.sectionLabel),
-              initiallyExpanded: _calibrationExpanded,
-              onExpansionChanged: (v) => setState(() => _calibrationExpanded = v),
-              childrenPadding: const EdgeInsets.all(16),
-              children: [
-                TextField(
-                  controller: _fiducialController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Fiducial marker size (mm)',
-                    hintText: 'Default: 40 mm',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // 6. Start Camera Button
-          SizedBox(
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _onStartCamera,
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // PageView Stepper
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  Icon(Icons.camera, size: 20),
-                  SizedBox(width: 8),
-                  Text('START CAMERA'),
+                  PackageStep(
+                    shape: _shape,
+                    onShapeChanged: (s) => setState(() => _shape = s),
+                    heightController: _heightController,
+                    widthController: _widthController,
+                    diameterController: _diameterController,
+                    areaController: _areaController,
+                  ),
+                  ConditionsStep(
+                    commodityController: _commodityController,
+                    blown: _blown,
+                    onBlownChanged: (v) => setState(() => _blown = v),
+                    institutional: _institutional,
+                    onInstitutionalChanged: (v) => setState(() => _institutional = v),
+                    fastFood: _fastFood,
+                    onFastFoodChanged: (v) => setState(() => _fastFood = v),
+                    attachGps: _attachGps,
+                    onAttachGpsChanged: (v) => setState(() => _attachGps = v),
+                  ),
+                  ConfirmationStep(
+                    shape: _shape,
+                    commodity: _commodityController.text.trim(),
+                    dimensionsSummary: _dimensionsSummary,
+                    activeConditions: _activeConditions,
+                    fiducialController: _fiducialController,
+                    dossierOnPass: _dossierOnPass,
+                    onDossierOnPassChanged: (v) => setState(() => _dossierOnPass = v),
+                  ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+
+            // Bottom Navigation Controls
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: AppColors.border, width: 1)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _onPrevStep,
+                      icon: const Icon(Icons.arrow_back, size: 16),
+                      label: Text(_currentStep == 0 ? 'Cancel' : 'Back'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: _currentStep == 2 ? 2 : 1,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.navy,
+                      ),
+                      onPressed: _onNextStep,
+                      icon: Icon(
+                        _currentStep == 2 ? Icons.camera_alt : Icons.arrow_forward,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      label: Text(_currentStep == 2 ? 'Start Camera' : 'Continue'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-
-  Widget _buildDimensionInputs() {
-    switch (_shape) {
-      case PackageShape.rectangular:
-      case PackageShape.pouch:
-        return Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _heightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Height (cm)'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _widthController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Width (cm)'),
-              ),
-            ),
-          ],
-        );
-      case PackageShape.cylindrical:
-      case PackageShape.bottle:
-        return Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _heightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Height (cm)'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: _diameterController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Diameter (cm)'),
-              ),
-            ),
-          ],
-        );
-      case PackageShape.other:
-        return TextField(
-          controller: _areaController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Total surface area (cm²)'),
-        );
-    }
   }
 }

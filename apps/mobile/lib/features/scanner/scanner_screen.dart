@@ -6,9 +6,11 @@ import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/util/image_pipeline.dart';
 import 'review_screen.dart';
+import 'widgets/capture_frame.dart';
+import 'widgets/capture_guidance.dart';
 
 /// Live Camera Scanner Screen (Brief §5.3).
-/// Portrait camera preview, guidance banner for blur/glare, 72dp shutter button.
+/// Portrait camera preview, corner-bracket viewfinder framing, contextual guidance, and 72dp shutter.
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
@@ -70,7 +72,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     setState(() {
       _isCapturing = true;
-      _statusText = 'Processing image & running native vision prepass...';
+      _statusText = 'Running native vision prepass & OCR...';
     });
 
     try {
@@ -111,10 +113,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(scanSessionProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Capture Package Evidence'),
+        title: Text(session.config.commodity.isNotEmpty
+            ? session.config.commodity
+            : 'Capture Package Evidence'),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -133,35 +139,31 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               child: CircularProgressIndicator(color: Colors.white),
             ),
 
-          // 2. Guidance Card at Top
+          // 2. Viewfinder Framing (Corner brackets)
+          if (_isInitialized)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: CaptureFrame(
+                  bracketLength: 32,
+                  strokeWidth: 3.5,
+                  bracketColor: Colors.white70,
+                ),
+              ),
+            ),
+
+          // 3. Guidance Card at Top
           if (_isInitialized)
             Positioned(
               top: 16,
               left: 16,
               right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white24, width: 1),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Align package & fiducial card flat in bright light. Avoid glare.',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
+              child: CaptureGuidance(
+                state: _isCapturing ? CaptureState.processing : CaptureState.aligning,
+                customMessage: _statusText,
               ),
             ),
 
-          // 3. Processing Overlay
+          // 4. Processing Overlay
           if (_isCapturing)
             Positioned.fill(
               child: Container(
@@ -182,24 +184,38 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ),
             ),
 
-          // 4. Bottom Shutter Bar
+          // 5. Bottom Shutter Bar
           Positioned(
-            bottom: 24,
+            bottom: 28,
             left: 0,
             right: 0,
             child: Center(
               child: GestureDetector(
                 onTap: _isCapturing ? null : _onCapture,
                 child: Container(
-                  width: 72,
-                  height: 72,
+                  width: 76,
+                  height: 76,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isCapturing ? Colors.grey : Colors.white,
-                    border: Border.all(color: AppColors.navy, width: 4),
+                    color: _isCapturing ? Colors.grey.shade600 : Colors.white,
+                    border: Border.all(
+                      color: AppColors.navy,
+                      width: 4,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Center(
-                    child: Icon(Icons.camera_alt, color: AppColors.navy, size: 32),
+                  child: Center(
+                    child: Icon(
+                      Icons.camera_alt,
+                      color: _isCapturing ? Colors.white54 : AppColors.navy,
+                      size: 34,
+                    ),
                   ),
                 ),
               ),
