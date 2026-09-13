@@ -1,11 +1,11 @@
 # NETRA Android integration — the native seam
 
-Kotlin side of the bridge: `native/android/NetraCorePlugin.kt` (the
-MethodChannel pipe), `native/android/NetraKeystore.kt` (KeyStore ECDSA
-P-256 signing of the pinned payload), `native/android/netra_smoke.py`
+Kotlin side of the bridge: `apps/mobile/android/app/src/main/java/netra/core/NetraCorePlugin.kt` (the
+MethodChannel pipe), `apps/mobile/android/app/src/main/java/netra/core/NetraKeystore.kt` (KeyStore ECDSA
+P-256 signing of the pinned payload), `apps/mobile/android/app/src/main/python/netra_smoke.py`
 (the environment spike). Flutter/Dart lives in `apps/mobile` (Antigravity,
-built against `BRIDGE_CONTRACT.md`); these three files are the platform
-half that the Flutter agent must not invent.
+built against `BRIDGE_CONTRACT.md`); the platform seam lives inside
+`apps/mobile/android/app/src/main/java/netra/core/`.
 
 ## What is certain vs the one open risk
 
@@ -67,7 +67,7 @@ chaquopy {
 Build the core wheel:
 
     cd core
-    .venv\Scripts\python -m pip wheel . --no-deps -w ..\native\android\wheels
+    .venv\Scripts\python -m pip wheel . --no-deps -w ..\apps\mobile\android\app
 
 then copy the wheel next to `build.gradle` (or reference the path).
 

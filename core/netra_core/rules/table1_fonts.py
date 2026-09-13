@@ -53,6 +53,10 @@ def font_height_ok(pda_cm2, measured_mm, blown=False, tol_mm=0.0):
 
 
 # ---- Rule 7(4): PDA computation -------------------------------------------
+ROUND_SHAPES = frozenset({"cylindrical", "bottle"})
+FLAT_SHAPES = frozenset({"rectangular", "pouch"})
+
+
 def pda_rectangular_cm2(height_cm: float, width_cm: float) -> float:
     """One entire principal display side (excludes tops/bottoms/flanges)."""
     return float(height_cm * width_cm)
@@ -66,6 +70,58 @@ def pda_cylindrical_cm2(height_cm: float, diameter_cm: float) -> float:
 def pda_other_cm2(total_surface_cm2: float) -> float:
     """40% of total surface area / designated principal display panel."""
     return 0.40 * float(total_surface_cm2)
+
+
+def _as_float(v) -> Optional[float]:
+    if v is None or v == "":
+        return None
+    try:
+        f = float(v)
+        return f if f > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def compute_pda(
+    shape: Optional[str] = None,
+    options: Optional[dict] = None,
+    *,
+    height_cm: Optional[float] = None,
+    width_cm: Optional[float] = None,
+    diameter_cm: Optional[float] = None,
+    total_surface_cm2: Optional[float] = None,
+    image_diameter_mm: Optional[float] = None,
+) -> tuple[Optional[float], str]:
+    """Rule 7(4) PDA from inspector-supplied dimensions or image calibration.
+
+    Pure statutory dispatch — centralized in table1_fonts so B1 device builds
+    (pipeline.py) and full desktop builds (s3_calibration.py) share the exact
+    same logic without pulling cv2 into device runtimes.
+
+    Returns:
+        (pda_cm2 | None, tag)
+    """
+    opts = options or {}
+    h = _as_float(height_cm if height_cm is not None else opts.get("package_height_cm"))
+    w = _as_float(width_cm if width_cm is not None else opts.get("package_width_cm"))
+    d = _as_float(diameter_cm if diameter_cm is not None else opts.get("package_diameter_cm"))
+    total = _as_float(total_surface_cm2 if total_surface_cm2 is not None else opts.get("total_surface_cm2"))
+    img_d = _as_float(image_diameter_mm if image_diameter_mm is not None else opts.get("image_diameter_mm"))
+
+    s = (shape or "").lower()
+    if s in ROUND_SHAPES:
+        if h and d:
+            return pda_cylindrical_cm2(h, d), "inspector-dims"
+        if h and img_d:
+            return pda_cylindrical_cm2(h, img_d / 10.0), "aruco-cylindrical"
+        return None, ""
+    if s in FLAT_SHAPES and h and w:
+        return pda_rectangular_cm2(h, w), "inspector-dims"
+    if total:
+        return pda_other_cm2(total), "inspector-dims"
+    if h and w:                        # shape unknown, flat dims given
+        return pda_rectangular_cm2(h, w), "inspector-dims"
+    return None, ""
 
 
 # ---- Rule 7(3): character width --------------------------------------------

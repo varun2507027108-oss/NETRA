@@ -3,7 +3,7 @@ import math
 import pytest
 
 from netra_core.rules.table1_fonts import (
-    TABLE_I, band_index, glyph_aspect_ok, glyph_min_width_mm,
+    TABLE_I, band_index, compute_pda, glyph_aspect_ok, glyph_min_width_mm,
     min_font_height_mm, pda_cylindrical_cm2, pda_other_cm2, pda_rectangular_cm2,
 )
 
@@ -61,3 +61,57 @@ class TestGlyphAspect:
     def test_numerals_enforced(self):
         assert glyph_aspect_ok(6.0, 2.0, "5")
         assert not glyph_aspect_ok(6.0, 1.9, "5")
+
+
+def test_compute_pda_dispatch_parity():
+    """Verify compute_pda reproduces every branch of the deleted _pda_from_options
+    and s3_calibration dispatch across shapes, dimensions, and fallbacks."""
+    # Cylindrical / bottle with h + d -> inspector-dims
+    for shape in ("cylindrical", "bottle", "CYLINDRICAL", "Bottle"):
+        pda, method = compute_pda(shape, {"package_height_cm": 15.0, "package_diameter_cm": 6.0})
+        assert pda == pytest.approx(pda_cylindrical_cm2(15.0, 6.0))
+        assert method == "inspector-dims"
+
+    # Cylindrical with only h (missing d) -> None, ""
+    assert compute_pda("cylindrical", {"package_height_cm": 15.0}) == (None, "")
+
+    # Cylindrical with h + image_diameter_mm -> aruco-cylindrical
+    pda, method = compute_pda("cylindrical", {"package_height_cm": 15.0}, image_diameter_mm=60.0)
+    assert pda == pytest.approx(pda_cylindrical_cm2(15.0, 6.0))
+    assert method == "aruco-cylindrical"
+
+    # Rectangular / pouch with h + w -> inspector-dims
+    for shape in ("rectangular", "pouch", "RECTANGULAR", "Pouch"):
+        pda, method = compute_pda(shape, {"package_height_cm": 10.0, "package_width_cm": 5.0})
+        assert pda == pytest.approx(50.0)
+        assert method == "inspector-dims"
+
+    # Rectangular missing w -> None, ""
+    assert compute_pda("rectangular", {"package_height_cm": 10.0}) == (None, "")
+
+    # Other shape with total_surface_cm2 -> inspector-dims (40%)
+    pda, method = compute_pda("other", {"total_surface_cm2": 250.0})
+    assert pda == pytest.approx(100.0)
+    assert method == "inspector-dims"
+
+    # Unknown / empty shape with h + w -> fallback to rectangular inspector-dims
+    for shape in ("", None, "custom_box"):
+        pda, method = compute_pda(shape, {"package_height_cm": 12.0, "package_width_cm": 8.0})
+        assert pda == pytest.approx(96.0)
+        assert method == "inspector-dims"
+
+    # Unknown shape with total_surface_cm2 -> inspector-dims (40%)
+    pda, method = compute_pda(None, {"total_surface_cm2": 150.0})
+    assert pda == pytest.approx(60.0)
+    assert method == "inspector-dims"
+
+    # Empty options / missing all dimensions -> None, ""
+    assert compute_pda("rectangular", {}) == (None, "")
+    assert compute_pda(None, None) == (None, "")
+
+    # Direct kwargs without options dict (backward compatibility with s3_calibration callers)
+    assert compute_pda("rectangular", height_cm=10, width_cm=6) == (60.0, "inspector-dims")
+    assert compute_pda("cylindrical", height_cm=10, diameter_cm=6)[1] == "inspector-dims"
+    assert compute_pda("cylindrical", height_cm=10, image_diameter_mm=60.0)[1] == "aruco-cylindrical"
+    assert compute_pda("other", total_surface_cm2=500) == (200.0, "inspector-dims")
+

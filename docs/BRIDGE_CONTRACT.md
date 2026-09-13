@@ -16,7 +16,7 @@ major (verify via `ping`).
 
 | Mode | Transport | Path |
 |---|---|---|
-| Android (production) | MethodChannel `netra.core` | Dart → Kotlin → Chaquopy in-process call to `netra_core.bridge.chaquopy_api` (`scan(json) -> json`). MethodChannel arguments and returns are **JSON-encoded strings**; the Kotlin handler (`native/android/NetraCorePlugin.kt`) is a faithful pipe with zero statutory logic. |
+| Android (production) | MethodChannel `netra.core` | Dart → Kotlin → Chaquopy in-process call to `netra_core.bridge.chaquopy_api` (`scan(json) -> json`). MethodChannel arguments and returns are **JSON-encoded strings**; the Kotlin handler (`apps/mobile/android/app/src/main/java/netra/core/NetraCorePlugin.kt`) is a faithful pipe with zero statutory logic. |
 | Desktop / emulator dev | HTTP | `http://127.0.0.1:8734` — start with `python -m netra_core.bridge.server` |
 
 Only `NetraBridge` (Dart) knows a transport exists.
@@ -257,7 +257,7 @@ options and gets verdicts; Rule 7 reports NA until geometry arrives.
   run_scan degrades in-band on vision-less builds. Result surface
   unchanged (17 keys).
 - **1.2.4** — Android native seam defined: channel carries JSON strings;
-  `native/android/` (plugin, KeyStore signer, smoke spike) + integration
+  `apps/mobile/android/app/src/main/java/netra/core/` (plugin, KeyStore signer) + integration
   doc with the Chaquopy decision tree. Signature payload regex pinned in
   tests and Kotlin. chaquopy_api imports pipeline lazily so ping/
   configure/queue_status never require the vision stack.

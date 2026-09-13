@@ -35,6 +35,7 @@ from .config import PDA_SANITY_CM2
 from .context import BBox, OCRToken, PipelineContext
 from .dossier import crypto
 from .persistence import queue_db
+from .rules.table1_fonts import compute_pda
 from .stages import s4_ocr, s5_field_extract, s6_metrology, s7_dossier
 from .stages.s2_roi_merge import merge_roi_boxes
 
@@ -43,33 +44,6 @@ _VISION_STAGE_NAMES = ("s1_frame_quality", "s2_geometry_detect",
 _VISION_CACHE: dict = {}
 
 
-def _pda_from_options(shape_hint: str, options: dict) -> tuple:
-    """Rule 7(4) PDA from inspector-supplied dimensions — pure logic.
-
-    Mirrors s3_calibration.compute_pda, which CANNOT be imported on B1
-    device builds (its module pulls cv2). The formulas live in
-    rules/table1_fonts (stdlib) — the law stays in one place, only the
-    caller differs."""
-    from .config import PDA_SANITY_CM2
-    from .rules.table1_fonts import (pda_cylindrical_cm2, pda_other_cm2,
-                                     pda_rectangular_cm2)
-    opts = options or {}
-    h = opts.get("package_height_cm")
-    w = opts.get("package_width_cm")
-    d = opts.get("package_diameter_cm")
-    total = opts.get("total_surface_cm2")
-    shape = (shape_hint or "").lower()
-    if shape in ("cylindrical", "bottle"):
-        if h and d:
-            return pda_cylindrical_cm2(h, d), "inspector-dims"
-        return None, ""
-    if shape in ("rectangular", "pouch") and h and w:
-        return pda_rectangular_cm2(h, w), "inspector-dims"
-    if total:
-        return pda_other_cm2(total), "inspector-dims"
-    if h and w:                        # shape unknown, flat dims given
-        return pda_rectangular_cm2(h, w), "inspector-dims"
-    return None, ""
 
 
 
@@ -310,7 +284,7 @@ def run_scan_tokens(request) -> dict:
     ctx.pda_cm2 = g.get("pda_cm2")
     ctx.pda_method = str(g.get("pda_method") or "")
     if ctx.pda_cm2 is None:
-        pda, method = _pda_from_options(ctx.shape_hint, request.options)
+        pda, method = compute_pda(ctx.shape_hint, request.options)
         if pda is not None and (PDA_SANITY_CM2[0] <= pda <= PDA_SANITY_CM2[1]):
             ctx.pda_cm2 = round(float(pda), 2)
             ctx.pda_method = method

@@ -268,8 +268,7 @@ NETRA/
 │   ├── scripts/             doctor · demo_all · bench · fiducial card · fixtures · payload checker
 │   └── fixtures/            contract mocks (committed) · real-photo validation protocol
 ├── backend/                 🏛 institutional gateway — FastAPI · SQLAlchemy · PostGIS
-├── native/android/          🔌 the platform seam — NetraCorePlugin.kt · NetraKeystore.kt · smoke spike
-├── apps/mobile/             📱 Flutter field app (built against the bridge contract)
+├── apps/mobile/             📱 Flutter field app + platform seam (apps/mobile/android/app/src/main/java/netra/core/)
 └── docs/                    📚 everything below
 ```
 </details>

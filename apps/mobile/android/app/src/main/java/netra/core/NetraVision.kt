@@ -64,8 +64,15 @@ object NetraVision {
         cfg = JSONObject(configJson)
     }
 
-    private fun c(name: String): Double = cfg!!.optDouble(name)
-    private fun cInt(name: String): Int = cfg!!.optInt(name)
+    private fun c(name: String): Double {
+        if (!cfg!!.has(name)) throw IllegalStateException("Missing vision config key: $name")
+        return cfg!!.getDouble(name)
+    }
+
+    private fun cInt(name: String): Int {
+        if (!cfg!!.has(name)) throw IllegalStateException("Missing vision config key: $name")
+        return cfg!!.getInt(name)
+    }
 
     // --- v1.4.0: on-device YOLO ROI detection (netra_roi r1) -------------
     // Context arrives via NetraCorePlugin.register -> attach(); the model
@@ -86,8 +93,8 @@ object NetraVision {
         try {
             val cfg = YoloConfig.fromVisionConfig(JSONObject(configJson))
             yolo = NetraYolo.fromAsset(ctx, "yolo26n_roi.tflite", cfg)
-        } catch (@Suppress("TooGenericException") t: Throwable) {
-            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", t)
+        } catch (e: Exception) {
+            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", e)
             yolo = null   // classical fallback path; roi keys stay absent
         }
     }
@@ -107,8 +114,8 @@ object NetraVision {
                     .put("h", b.h.toDouble()))
             }
             arr to JSONObject().put("w", work.width).put("h", work.height)
-        } catch (@Suppress("TooGenericException") t: Throwable) {
-            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", t)
+        } catch (e: Exception) {
+            android.util.Log.w("NETRA_YOLO", "model unavailable — classical ROI path in effect", e)
             null
         }
     }
@@ -354,8 +361,9 @@ object NetraVision {
             }
         }
         if (pda != null) {
-            val lo = cfg!!.optJSONArray("PDA_SANITY_CM2").optDouble(0)
-            val hi = cfg!!.optJSONArray("PDA_SANITY_CM2").optDouble(1)
+            val sanity = cfg!!.optJSONArray("PDA_SANITY_CM2")
+            val lo = sanity?.optDouble(0) ?: 1.0
+            val hi = sanity?.optDouble(1) ?: 25000.0
             if (pda in lo..hi) {
                 g.put("pda_cm2", Math.round(pda * 100.0) / 100.0)
                 g.put("pda_method", method)

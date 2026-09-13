@@ -46,12 +46,10 @@ from ..config import (ARUCO_MARKER_MM, CYL_MAX_RADIUS_MM, CYL_MIN_RADIUS_PX,
                       CYL_THETA_LIMIT_DEG, FOCAL_RATIO_DEFAULT, MAX_RECT_SCALE,
                       PDA_SANITY_CM2)
 from ..context import BBox, PipelineContext
-from ..rules.table1_fonts import (pda_cylindrical_cm2, pda_other_cm2,
+from ..rules.table1_fonts import (FLAT_SHAPES, ROUND_SHAPES, compute_pda,
+                                  pda_cylindrical_cm2, pda_other_cm2,
                                   pda_rectangular_cm2)
 from ..vision import aruco
-
-FLAT_SHAPES = ("rectangular", "pouch")
-ROUND_SHAPES = ("cylindrical", "bottle")
 
 
 @dataclass(frozen=True)
@@ -189,25 +187,6 @@ def cylindrical_maps(C, plane_w: int, plane_h: int, centre_px: float,
             src[:, :, 1].reshape(out_h, out_w).astype(np.float32))
 
 
-# ---------------------------------------------------------------------- PDA
-def compute_pda(shape, *, height_cm=None, width_cm=None, diameter_cm=None,
-                total_surface_cm2=None, image_diameter_mm=None):
-    """Rule 7(4) PDA from the best available source. -> (pda | None, tag)."""
-    shape = (shape or "").lower()
-    if shape in ROUND_SHAPES:
-        if height_cm and diameter_cm:
-            return pda_cylindrical_cm2(height_cm, diameter_cm), "inspector-dims"
-        if height_cm and image_diameter_mm:
-            return (pda_cylindrical_cm2(height_cm, image_diameter_mm / 10.0),
-                    "aruco-cylindrical")
-        return None, ""
-    if shape in FLAT_SHAPES and height_cm and width_cm:
-        return pda_rectangular_cm2(height_cm, width_cm), "inspector-dims"
-    if total_surface_cm2:
-        return pda_other_cm2(total_surface_cm2), "inspector-dims"
-    if height_cm and width_cm:            # shape unknown, flat dims given
-        return pda_rectangular_cm2(height_cm, width_cm), "inspector-dims"
-    return None, ""
 
 
 # --------------------------------------------------------------------- pose
