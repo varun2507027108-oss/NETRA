@@ -91,6 +91,16 @@ def _apply_cmd_override() -> None:
     cmd = os.environ.get("TESSERACT_CMD")
     if cmd:
         pytesseract.pytesseract.tesseract_cmd = cmd
+        return
+    # Default Windows installation locations
+    for default_win_path in (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+    ):
+        if os.path.isfile(default_win_path):
+            pytesseract.pytesseract.tesseract_cmd = default_win_path
+            return
 
 
 def available() -> bool:

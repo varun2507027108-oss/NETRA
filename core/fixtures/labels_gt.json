@@ -1,0 +1,59 @@
+{
+  "P01_pouch": {
+    "shape": "pouch",
+    "dims_cm": {
+      "height": 0.0,
+      "width": 0.0
+    },
+    "fields": {
+      "product_name": "PENDING",
+      "net_qty": "PENDING",
+      "mrp": "PENDING",
+      "usp": "PENDING",
+      "mfg_date": "PENDING",
+      "mfg_address": "PENDING",
+      "origin": "PENDING",
+      "consumer_care": "PENDING"
+    },
+    "expect_fail": [],
+    "notes": "PENDING — fill after capture"
+  },
+  "P02_bottle": {
+    "shape": "cylindrical",
+    "dims_cm": {
+      "height": 0.0,
+      "diameter": 0.0
+    },
+    "fields": {
+      "product_name": "PENDING",
+      "net_qty": "PENDING",
+      "mrp": "PENDING",
+      "usp": "PENDING",
+      "mfg_date": "PENDING",
+      "mfg_address": "PENDING",
+      "origin": "PENDING",
+      "consumer_care": "PENDING"
+    },
+    "expect_fail": [],
+    "notes": "PENDING — fill after capture"
+  },
+  "P03_box": {
+    "shape": "rectangular",
+    "dims_cm": {
+      "height": 0.0,
+      "width": 0.0
+    },
+    "fields": {
+      "product_name": "PENDING",
+      "net_qty": "PENDING",
+      "mrp": "PENDING",
+      "usp": "PENDING",
+      "mfg_date": "PENDING",
+      "mfg_address": "PENDING",
+      "origin": "PENDING",
+      "consumer_care": "PENDING"
+    },
+    "expect_fail": [],
+    "notes": "PENDING — fill after capture"
+  }
+}
