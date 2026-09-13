@@ -23,9 +23,9 @@ changing the architecture or the bridge contract.
 ## Four differentiators
 
 **1. A deterministic statutory engine.** Rule 6/7/13/26 encoded as pure
-stdlib logic with `Decimal` arithmetic: 0.45 ms per scan, ~290 unit tests
-pinned at statutory boundaries (PDA bands 50/100/500/2500 cm², the ₹0.01
-USP tolerance, the exactly-one-unit exemption, tobacco/cement carve-outs,
+stdlib logic with `Decimal` arithmetic: 0.45 ms statutory core (s5+s6, 25-run mean),
+381 CI tests (384 local) pinned at statutory boundaries (PDA bands 50/100/500/2500 cm²,
+the ₹0.01 USP tolerance, the exactly-one-unit exemption, tobacco/cement carve-outs,
 the "Made in PRC" ambiguity trap). Every finding carries its rule citation
 and evidence bbox. Same input, same verdict, every time — auditable, not
 probabilistic.
@@ -55,7 +55,7 @@ git clone https://github.com/varun2507027108-oss/NETRA && cd NETRA/core
 python -m venv .venv
 .venv\Scripts\python -m pip install -e ".[dev]"
 .venv\Scripts\python -m pip install -e ..\backend
-.venv\Scripts\pytest                              # ~290 tests, statutory boundaries
+.venv\Scripts\pytest                              # 384 passed / 3 skipped (local) · 381 in CI
 .venv\Scripts\python scripts\demo_dossier.py      # VIOLATION verdict → PDF (open it:
                                                   #   evidence boxes, citations, §63(4))
                                                   # → ECDSA signature verified → ledger
@@ -79,12 +79,13 @@ python -m venv .venv
 
 Live today: the full deterministic chain — quality gate, calibration,
 extraction, statutory engine, dossier, ledger, sync, gateway, exports —
-running end-to-end on desktop (Tesseract dev OCR tier) and on synthetic
-photographs with a real ArUco fiducial. Device round (in progress): ML Kit
-v2 + IndicPhotoOCR on Android via Chaquopy, YOLO26n ROIs, and the
-real-photo fixture set that produces measured precision/recall — the
-golden-report engine and photography protocol are already in the repo
-(`core/fixtures/README.md`).
+running end-to-end on desktop and on device. The model layer (YOLO26n
+on-device ROI detector on LiteRT 1.0.1) is landed and hardware-verified
+with 4/4 device golden tests on CPH2467, 1.6e-6 raw-tensor parity across
+4 runtimes, ~0.3–0.4 s full scan with ML, and contract v1.4.0 (`roi_boxes`,
+`roi_frame`). Remaining items: the 3 real-photo field fixture set to produce
+the measured precision/recall number (`golden_report.json`), and the s5
+PDP-bias refinement.
 
 The statutory logic — the part that must never be wrong — is the part that
 is finished, deterministic, and tested.

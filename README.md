@@ -10,8 +10,8 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.13-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/varun2507027108-oss/NETRA/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg?style=flat-square)](LICENSE)
 [![Stages](https://img.shields.io/badge/pipeline-8%2F8%20stages%20live-brightgreen?style=flat-square)](#-the-pipeline--all-8-spec-stages-live)
-[![Tests](https://img.shields.io/badge/tests-353%20passing-success?style=flat-square)](#-testing)
-[![Contract](https://img.shields.io/badge/bridge%20contract-v1.3.2-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
+[![Tests](https://img.shields.io/badge/tests-381%20passing-success?style=flat-square)](#-testing)
+[![Contract](https://img.shields.io/badge/bridge%20contract-v1.4.0-blueviolet?style=flat-square)](docs/BRIDGE_CONTRACT.md)
 [![Release](https://img.shields.io/badge/release-v0.1.0-2ea44f?style=flat-square)](https://github.com/varun2507027108-oss/NETRA/releases)
 
 ***netra* (नेत्र) — Sanskrit: "the eye."** The inspector's eye that never tires, never blinks,
@@ -43,11 +43,11 @@ and reads font heights in fractions of a millimetre.
 | # | Stage | What it does | Live engine today | Device-round upgrade | Budget |
 |---|---|---|---|---|---|
 | 1 | ✅ **s1 · quality gate** | Laplacian ≥ 100 blur gate, glare > 242, inspector repositioning prompts | OpenCV | — | < 3 ms |
-| 2 | ✅ **s2 · geometry** | package silhouette, fiducial-aware crop, shape suggestion, barcode ROI | classical CV | YOLO26n on LiteRT | ~39 ms |
+| 2 | ✅ **s2 · geometry** | package silhouette, fiducial-aware crop, shape suggestion, barcode ROI, **on-device YOLO26n ROI detection** (`PACKAGE`, `PDP`, `PRICE`, `BARCODE`, `BOP`) | classical CV + YOLO26n on LiteRT 1.0.1 | device golden parity (1.6e-6 max diff) | ~300–370 ms ML (~0.36 s typical) / ~39 ms classical |
 | 3 | ✅ **s3 · calibration** | ArUco homography + solvePnP → mm/px, cylindrical unwarp, Rule 7(4) PDA | OpenCV | + TPS pouch correction | ~15 ms |
 | 4 | ✅ **s4 · OCR** | 3-tier router — first engine with tokens wins | registry + Tesseract *(desktop dev tier)* | ML Kit v2 · IndicPhotoOCR · Bhashini | < 1 ms routing |
 | 5 | ✅ **s5 · extraction** | anchor→value spatial aggregation (L1–L4), typed-parse gating | deterministic K-NN heuristics | — | < 1 ms |
-| 6 | ✅ **s6 · metrology** | Table-I font heights, glyph aspect, USP math, Rule 6/13/26 | stdlib + `Decimal` | — | < 1 ms |
+| 6 | ✅ **s6 · metrology** | Table-I font heights, glyph aspect, USP math, Rule 6/13/26 | stdlib + `Decimal` | — | < 1 ms (0.45 ms statutory core) |
 | 7 | ✅ **s7 · dossier** | evidence PDF, hash chain, §63(4) certificate page | ReportLab | platform KeyStore signing | ~20 ms |
 | 8 | ✅ **s8 · sync** | offline queue drain → gateway → institutional exports | stdlib urllib + SQLite | — | async |
 
@@ -151,7 +151,7 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -e ..\backend
 
 .venv\Scripts\python scripts\doctor.py        # 🩺 environment report — what's ready, what's missing
-.venv\Scripts\pytest                          # 🧪 323 tests
+.venv\Scripts\pytest                          # 🧪 384 tests passed / 3 skipped (local) · 381 passed / 6 skipped (CI)
 .venv\Scripts\python scripts\demo_all.py      # 🎬 the full 8-stage story, one command
 ```
 
@@ -237,9 +237,10 @@ statutory core (s5+s6, 25-run mean): 0.45 ms
 
 | | |
 |---|---|
-| ✅ **353 tests** | green on GitHub Actions, Python 3.11 + 3.13 — the CI run is the canonical test count · [the badge is live](https://github.com/varun2507027108-oss/NETRA/actions) |
+| ✅ **381 tests (CI) / 384 (local)** | green on GitHub Actions, Python 3.11 + 3.13 (381 passed / 6 skipped in CI; 384 passed / 3 skipped locally) · [the badge is live](https://github.com/varun2507027108-oss/NETRA/actions) |
 | 🎯 **Statutory boundary tests** | PDA band edges (50/100/500/2500 cm²) · the ₹0.01 USP tolerance · the exactly-one-unit exemption · tobacco & cement carve-outs · "Made in PRC" |
-| 📜 **Executable contract validators** | every payload shape the core emits is validated in-test; Flutter mock fixtures are machine-validated at record time (`core/fixtures/contract/`) |
+| 📱 **Device & Golden Parity tests** | 4/4 device tests on OnePlus CPH2467 silicon (LiteRT 1.0.1); 5/5 stdlib golden contract tests (`test_yolo_golden.py`); raw-tensor max abs diff 1.6e-6 across 4 runtimes |
+| 📜 **Executable contract validators** | every payload shape the core emits is validated in-test against schema v1.4.0 (13 contract fixtures including 2 v1.4.0 ROI variants); Flutter mock fixtures are machine-validated at record time (`core/fixtures/contract/`) |
 | 🏞️ **Golden-report engine** | photograph real packages → per-fixture rule precision/recall (`core/fixtures/README.md`) |
 | 🩺 **Environment doctor** | `scripts/doctor.py` — one command, every dependency, fix hints |
 
@@ -263,7 +264,7 @@ NETRA/
 │   │   ├── bridge/          the frozen JSON contract, FastAPI + Chaquopy seams
 │   │   ├── vision/          ArUco, geometry, calibration helpers
 │   │   └── qa/              golden-report engine + executable contract validators
-│   ├── tests/               353 tests
+│   ├── tests/               387 collected tests (384 passed / 3 skipped)
 │   ├── scripts/             doctor · demo_all · bench · fiducial card · fixtures · payload checker
 │   └── fixtures/            contract mocks (committed) · real-photo validation protocol
 ├── backend/                 🏛 institutional gateway — FastAPI · SQLAlchemy · PostGIS
@@ -279,7 +280,7 @@ NETRA/
 
 | Doc | What's inside |
 |---|---|
-| [`docs/BRIDGE_CONTRACT.md`](docs/BRIDGE_CONTRACT.md) | the frozen JSON seam between core and Flutter — **it is law** |
+| [`docs/BRIDGE_CONTRACT.md`](docs/BRIDGE_CONTRACT.md) | the frozen JSON seam between core and Flutter — **it is law** (revision 1.4.0) |
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | the evaluation brief — verify the whole system in ten minutes |
 | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | the timed 5-minute judge demo, with contingency insurance |
 | [`docs/JUDGE_QA.md`](docs/JUDGE_QA.md) | 13 anticipated judge questions, answered honestly |
@@ -292,14 +293,14 @@ NETRA/
 
 - [x] Deterministic 8-stage pipeline — every spec stage live on the deterministic engine
 - [x] Evidence chain: dossier → ECDSA P-256 → lifecycle-managed ledger → sync → exports
-- [x] Bridge contract v1.3.2 + executable validators + machine-validated Flutter mocks
-- [x] CI green — 353 tests, Python 3.11 & 3.13
+- [x] Bridge contract v1.4.0 (`roi_boxes`, `roi_frame`) + executable validators + 13 contract fixtures
+- [x] CI green — 381 tests (CI), Python 3.11 & 3.13 + `android-compile` workflow
 - [x] Android native seam — MethodChannel pipe, KeyStore signer, environment spike
 - [x] Chaquopy device spike → Path B1 confirmed (numpy/reportlab/pillow on-device; s7 live)
-- [ ] On-device OCR — ML Kit v2 + IndicPhotoOCR via the Chaquopy Java bridge
-- [ ] Real-photo golden report — measured rule precision / recall
-- [ ] YOLO26n provider for PDP / BOP / PRICE ROIs
-- [ ] Flutter field app — scanner, report, dossier signing, sync
+- [x] On-device YOLO26n ROI detection live on LiteRT 1.0.1 (PACKAGE/PDP/PRICE/BARCODE/BOP) with 4/4 hardware-verified device golden tests and 1.6e-6 raw tensor parity
+- [ ] Real-photo golden report — measured rule precision / recall (3 real photos)
+- [ ] s5 PDP-bias refinement
+- [ ] Flutter field app — Step 3 screens (dossier viewer, history, sync)
 
 ---
 

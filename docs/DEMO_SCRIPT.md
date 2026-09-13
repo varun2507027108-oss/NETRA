@@ -10,8 +10,8 @@ Run order (rehearse twice, verbatim):
 | 2:00 | The signature | point at the console | "ECDSA P-256 from the Android KeyStore — the key never leaves secure hardware. On desktop we prove the chain with a dev key." |
 | 2:30 | Offline-first | THE LIVE MOMENT (below) | "Scans complete with zero connectivity. Evidence queues. Sync is idempotent and nothing is ever deleted." |
 | 3:15 | The institution | console phases 5-7 | "The gateway maps violation density — PostGIS heatmaps for inspector route planning — and emits e-Daakhil and NCH 1915 payloads." |
-| 3:45 | The architecture | one slide | "Eight stages, all live. The legal decision path is deterministic: 0.45 ms, ~320 tests pinned at statutory boundaries. The bridge contract is machine-validated law, not documentation." |
-| 4:15 | Honest scope | one slide | "Live today: the full deterministic chain, end to end. In progress: on-device ML Kit, YOLO ROIs, and the field fixture set — the machinery to measure real-world precision is already in the repo." |
+| 3:45 | The architecture | one slide | "Eight stages, all live. Statutory core is 0.45 ms (full scan with on-device ML ~0.3–0.4 s, init 35 ms), 381 CI tests pinned at statutory boundaries. The bridge contract v1.4.0 is machine-validated law, not documentation." |
+| 4:15 | Honest scope | one slide | "Live today: the full deterministic chain end-to-end, plus on-device YOLO26n ROI detection (1.6e-6 tensor parity, 4/4 device tests). Remaining: 3 real photos for the field golden report and s5 PDP bias refinement." |
 
 ## The live offline moment (do this, don't narrate it)
 
