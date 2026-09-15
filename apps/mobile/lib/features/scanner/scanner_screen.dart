@@ -190,9 +190,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             left: 0,
             right: 0,
             child: Center(
-              child: GestureDetector(
-                onTap: _isCapturing ? null : _onCapture,
-                child: Container(
+              child: Semantics(
+                button: true,
+                enabled: !_isCapturing,
+                label: _isCapturing ? 'Capture processing' : 'Capture package evidence',
+                child: GestureDetector(
+                  onTap: _isCapturing ? null : _onCapture,
+                  child: Container(
                   width: 76,
                   height: 76,
                   decoration: BoxDecoration(
@@ -216,6 +220,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       color: _isCapturing ? Colors.white54 : AppColors.navy,
                       size: 34,
                     ),
+                  ),
                   ),
                 ),
               ),

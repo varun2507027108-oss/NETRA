@@ -33,26 +33,34 @@ class VerdictBanner extends StatelessWidget {
     };
 
     return Container(
-      height: 56,
+      constraints: const BoxConstraints(minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: barColor,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Semantics(
+        label: '$verdictText. $failCount failed checks, $passCount passed checks, $naCount not applicable checks.',
+        child: Row(
         children: [
-          Text(verdictText, style: AppTypography.verdictBanner),
+          Icon(
+            verdict == Verdict.pass ? Icons.verified_outlined : verdict == Verdict.violation ? Icons.report_problem_outlined : Icons.refresh,
+            color: Colors.white,
+            size: 24,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(verdictText, style: AppTypography.verdictBanner),
+          ),
           Text(
-            '$failCount FAIL  /  $passCount PASS  /  $naCount NA',
+            '$failCount FAIL\n$passCount PASS · $naCount N/A',
+            textAlign: TextAlign.right,
             style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+              fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white, height: 1.25,
             ),
           ),
         ],
+      ),
       ),
     );
   }

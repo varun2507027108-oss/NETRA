@@ -21,6 +21,11 @@ abstract final class AppColors {
 
   /// Government Navy - buttons, active states, app bar accent
   static const Color navy = Color(0xFF1E3A5F);
+  static const Color navyDeep = Color(0xFF112943);
+  static const Color navyTint = Color(0xFFE8EEF5);
+
+  /// Keyboard and assistive-technology focus indicator.
+  static const Color focus = Color(0xFF005FCC);
 
   /// VIOLATION text & background
   static const Color verdictRed = Color(0xFFA61B1B);

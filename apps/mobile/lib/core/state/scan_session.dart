@@ -41,7 +41,9 @@ class ScanConfig {
     this.institutional = false,
     this.fastFood = false,
     this.dossierOnPass = false,
-    this.attachGps = true,
+    // Location is sensitive evidence. It must be an intentional choice, not
+    // an implicit default that an officer may not notice in the field.
+    this.attachGps = false,
     this.fiducialMm = 40.0,
   });
 

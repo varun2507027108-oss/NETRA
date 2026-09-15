@@ -178,12 +178,23 @@ class HomeScreen extends ConsumerWidget {
                       pingAsync.maybeWhen(
                         data: (p) => p.capabilities.sync
                             ? TextButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Sync gateway configured')),
-                                  );
+                                onPressed: () async {
+                                  try {
+                                    final result = await ref.read(netraBridgeProvider).syncNow();
+                                    await ref.read(queueStatusProvider.notifier).refresh();
+                                    if (!context.mounted) return;
+                                    final message = result.error != null
+                                        ? 'Sync deferred: ${result.error}'
+                                        : 'Sync complete: ${result.synced} sent, ${result.remaining} remaining.';
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+                                  } catch (_) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Sync could not start. Records remain safely queued on this device.')),
+                                    );
+                                  }
                                 },
-                                child: const Text('Sync now', style: TextStyle(fontSize: 12)),
+                                child: const Text('Sync queued records', style: TextStyle(fontSize: 12)),
                               )
                             : Text(
                                 'Sync offline',

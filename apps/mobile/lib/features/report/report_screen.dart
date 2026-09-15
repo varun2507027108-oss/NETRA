@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/bridge/bridge_models.dart';
+import '../../core/state/bridge_provider.dart';
 import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
@@ -14,13 +17,88 @@ import 'widgets/evidence_viewer.dart';
 
 /// Complete Report Screen (Brief §5.5).
 /// Renders statutory inspection results with verdict-first hierarchy and evidence linkage.
-class ReportScreen extends ConsumerWidget {
+class ReportScreen extends ConsumerStatefulWidget {
   final ScanResult result;
 
   const ReportScreen({super.key, required this.result});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportScreen> createState() => _ReportScreenState();
+}
+
+class _ReportScreenState extends ConsumerState<ReportScreen> {
+  SigStatus? _signatureStatus;
+  bool _signing = false;
+  bool _syncing = false;
+  String? _actionMessage;
+
+  ScanResult get result => widget.result;
+
+  @override
+  void initState() {
+    super.initState();
+    _signatureStatus = result.dossier?.sigStatus;
+    if (result.dossier?.sigStatus == SigStatus.pending) _signEvidence();
+  }
+
+  Future<void> _signEvidence() async {
+    if (_signing || result.dossier == null || _signatureStatus == SigStatus.signed) return;
+    setState(() => _signing = true);
+    try {
+      final response = await ref.read(netraBridgeProvider).signAndAttach(result.toJson());
+      if (!mounted) return;
+      setState(() {
+        _signatureStatus = response.sigStatus;
+        _actionMessage = response.accepted
+            ? 'Evidence signed on this device. It remains queued until sync completes.'
+            : 'Evidence was not signed: ${response.error?.message ?? 'retry or contact technical operations.'}';
+      });
+      await ref.read(queueStatusProvider.notifier).refresh();
+    } catch (_) {
+      if (mounted) setState(() => _actionMessage = 'Evidence signing could not be completed. The dossier remains stored locally and unsigned.');
+    } finally {
+      if (mounted) setState(() => _signing = false);
+    }
+  }
+
+  Future<void> _syncQueue() async {
+    if (_syncing) return;
+    setState(() => _syncing = true);
+    try {
+      final summary = await ref.read(netraBridgeProvider).syncNow();
+      if (!mounted) return;
+      setState(() => _actionMessage = summary.error != null
+          ? 'Sync deferred: ${summary.error}. Evidence remains queued on this device.'
+          : 'Sync complete: ${summary.synced} sent; ${summary.remaining} record(s) remain queued.');
+      await ref.read(queueStatusProvider.notifier).refresh();
+    } catch (_) {
+      if (mounted) setState(() => _actionMessage = 'Sync could not start. Evidence remains safely queued on this device.');
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  Future<void> _verifyDossierCopy() async {
+    final dossier = result.dossier;
+    if (dossier == null) return;
+    try {
+      final file = await ref.read(netraBridgeProvider).getDossier(result.scanId);
+      if (!mounted) return;
+      if (file.error != null) {
+        setState(() => _actionMessage = 'Dossier could not be retrieved: ${file.error!.message}');
+        return;
+      }
+      final valid = sha256.convert(base64Decode(file.pdfB64)).toString() == dossier.sha256;
+      setState(() => _actionMessage = valid
+          ? 'The retrieved dossier matches its recorded SHA-256 fingerprint.'
+          : 'Dossier integrity check failed. Do not use this record; contact technical operations.');
+    } catch (_) {
+      if (mounted) setState(() => _actionMessage = 'Dossier verification could not be completed. Try again while the record is available locally.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final processedImage = ref.watch(scanSessionProvider).processedImage;
 
     // Split checks into failed/actionable vs passed/na for instant inspector triage
@@ -57,6 +135,11 @@ class ReportScreen extends ConsumerWidget {
             naCount: result.summary.na,
           ),
           const SizedBox(height: 16),
+
+          if (_actionMessage != null) ...[
+            _buildLifecycleMessage(),
+            const SizedBox(height: 16),
+          ],
 
           // 2. RETRY / In-Band Error Guidance (if applicable)
           if (result.verdict == Verdict.retry || result.error != null) ...[
@@ -155,11 +238,53 @@ class ReportScreen extends ConsumerWidget {
             ),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
             label: const Text(
-              'COMPLETE INSPECTION',
+              'RETURN TO INSPECTION HOME',
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
           ),
+          if (result.dossier != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _signatureStatus == SigStatus.signed || _signing ? null : _signEvidence,
+              icon: _signing
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.draw_outlined),
+              label: Text(_signatureStatus == SigStatus.signed ? 'EVIDENCE SIGNED' : 'SIGN EVIDENCE'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _syncing ? null : _syncQueue,
+              icon: _syncing
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.sync),
+              label: const Text('SYNC QUEUED RECORDS'),
+            ),
+          ],
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLifecycleMessage() {
+    final isProblem = _actionMessage!.contains('not ') ||
+        _actionMessage!.contains('could not') ||
+        _actionMessage!.contains('failed') ||
+        _actionMessage!.contains('deferred');
+    final color = isProblem ? AppColors.retryAmber : AppColors.verdictGreen;
+    final background = isProblem ? AppColors.retryAmberBg : AppColors.verdictGreenBg;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        children: [
+          Icon(isProblem ? Icons.info_outline : Icons.verified_outlined, color: color),
+          const SizedBox(width: 8),
+          Expanded(child: Text(_actionMessage!, style: AppTypography.caption.copyWith(color: AppColors.ink))),
         ],
       ),
     );
@@ -225,7 +350,8 @@ class ReportScreen extends ConsumerWidget {
         ? '${dossier.sha256.substring(0, 16)}...'
         : dossier.sha256;
 
-    final Color badgeColor = dossier.sigStatus == SigStatus.signed
+    final effectiveStatus = _signatureStatus ?? dossier.sigStatus;
+    final Color badgeColor = effectiveStatus == SigStatus.signed
         ? AppColors.verdictGreen
         : AppColors.retryAmber;
 
@@ -251,7 +377,7 @@ class ReportScreen extends ConsumerWidget {
                   border: Border.all(color: badgeColor, width: 1),
                 ),
                 child: Text(
-                  dossier.sigStatus.name.toUpperCase(),
+                  _signing ? 'SIGNING' : effectiveStatus.name.toUpperCase(),
                   style: AppTypography.monoSmall.copyWith(color: badgeColor),
                 ),
               ),
@@ -274,6 +400,12 @@ class ReportScreen extends ConsumerWidget {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          TextButton.icon(
+            onPressed: _verifyDossierCopy,
+            icon: const Icon(Icons.verified_user_outlined, size: 16),
+            label: const Text('Verify local dossier copy'),
           ),
         ],
       ),

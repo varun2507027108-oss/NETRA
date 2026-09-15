@@ -35,7 +35,7 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
   bool _institutional = false;
   bool _fastFood = false;
   bool _dossierOnPass = false;
-  bool _attachGps = true;
+  bool _attachGps = false;
 
   @override
   void initState() {
@@ -95,7 +95,7 @@ class _ScanSetupScreenState extends ConsumerState<ScanSetupScreen> {
     if (_blown) list.add('Blown/Molded (Rule 9(1))');
     if (_institutional) list.add('Institutional Supply (Rule 3)');
     if (_fastFood) list.add('Fast Food / Restaurant (Rule 26)');
-    if (_attachGps) list.add('GPS Signed');
+    if (_attachGps) list.add('Location requested');
     return list;
   }
 

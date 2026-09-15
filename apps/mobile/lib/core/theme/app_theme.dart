@@ -29,6 +29,8 @@ abstract final class AppTheme {
           bottom: BorderSide(color: AppColors.border, width: 1),
         ),
       ),
+      focusColor: AppColors.focus.withValues(alpha: 0.18),
+      splashColor: AppColors.navy.withValues(alpha: 0.10),
       cardTheme: const CardThemeData(
         color: AppColors.surface,
         elevation: 0,
@@ -61,6 +63,17 @@ abstract final class AppTheme {
             fontWeight: FontWeight.w600,
           ),
         ),
+      ),
+      navigationBarTheme: const NavigationBarThemeData(
+        indicatorColor: AppColors.navyTint,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected) ? AppColors.navy : null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          return states.contains(WidgetState.selected) ? AppColors.navyTint : null;
+        }),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(

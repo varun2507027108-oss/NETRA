@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/bridge/bridge_models.dart';
 import '../../core/bridge/request_builder.dart';
 import '../../core/state/bridge_provider.dart';
@@ -26,6 +27,64 @@ class ReviewScreen extends ConsumerStatefulWidget {
 class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   bool _showOcrBoxes = true;
   bool _isAuditing = false;
+
+  Future<Map<String, dynamic>?> _captureLocationIfRequested() async {
+    final config = ref.read(scanSessionProvider).config;
+    if (!config.attachGps) return null;
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw const _OfficerActionException(
+        'Location was requested, but device location is turned off. Turn it on or return to setup and continue without location.',
+      );
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw const _OfficerActionException(
+        'Location permission was not granted. Return to setup to continue without location, or grant permission and retry.',
+      );
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
+      ),
+    );
+    return {
+      'lat': position.latitude,
+      'lon': position.longitude,
+      'accuracy_m': position.accuracy,
+    };
+  }
+
+  Future<bool> _confirmIncompleteCapture() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Continue with incomplete capture?'),
+            content: const Text(
+              'The quality gate did not approve this image. The audit may be incomplete and must be reviewed before any enforcement action. Retake is recommended.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Retake'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
 
   Future<void> _onRunAudit() async {
     final session = ref.read(scanSessionProvider);
@@ -85,7 +144,18 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         markerSideMm: session.config.fiducialMm,
       );
 
-      // 5. Execute statutory scan_tokens call via bridge
+      // 5. Location is captured only after clear user intent and permission.
+      // It is evidence metadata, never described as a signature.
+      final gps = await _captureLocationIfRequested();
+      if (gps != null) {
+        builder.setGps(
+          lat: gps['lat'] as double,
+          lon: gps['lon'] as double,
+          accuracyM: gps['accuracy_m'] as double,
+        );
+      }
+
+      // 6. Execute statutory scan_tokens call via bridge
       final bridge = ref.read(netraBridgeProvider);
       final result = await bridge.scanTokens(builder.build());
 
@@ -100,9 +170,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isAuditing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Audit execution error: $e')),
-        );
+        final message = e is _OfficerActionException
+            ? e.message
+            : 'The audit could not be completed. Your capture is still available; retry or retake the photo.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     }
   }
@@ -245,7 +316,11 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         foregroundColor: AppColors.retryAmber,
                         side: const BorderSide(color: AppColors.retryAmber),
                       ),
-                      onPressed: _onRunAudit,
+                      onPressed: () async {
+                        if (await _confirmIncompleteCapture()) {
+                          await _onRunAudit();
+                        }
+                      },
                       child: const Text('PROCEED WITH INCOMPLETE DATA'),
                     ),
                   ],
@@ -259,4 +334,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       ),
     );
   }
+}
+
+class _OfficerActionException implements Exception {
+  final String message;
+  const _OfficerActionException(this.message);
 }

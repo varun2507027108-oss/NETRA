@@ -101,9 +101,9 @@ class ConditionsStep extends StatelessWidget {
               ),
               const Divider(height: 1),
               SwitchListTile(
-                title: const Text('Attach GPS Coordinates', style: AppTypography.body),
+                title: const Text('Request capture location', style: AppTypography.body),
                 subtitle: const Text(
-                  'Embeds geographical coordinates into the cryptographic evidence dossier.',
+                  'Requests device permission immediately before the audit. The result records the reported accuracy; location is not a signature.',
                   style: AppTypography.caption,
                 ),
                 value: attachGps,
