@@ -28,9 +28,20 @@ COMPLIANT = {
                      "Tel: 1800-123-4567, care@tasty.in",
 }
 
+_test_key = None
+_test_cert = None
+
 
 @pytest.fixture
-def api(tmp_path):
+def api(tmp_path, monkeypatch):
+    global _test_key, _test_cert
+    if crypto.HAVE_CRYPTO:
+        _test_key = crypto.make_dev_key()
+        _test_cert = crypto.make_dev_cert(_test_key)
+        monkeypatch.setenv(
+            "NETRA_TRUSTED_CERT_SHA256S",
+            crypto.certificate_fingerprint_sha256(_test_cert),
+        )
     paths.set_data_dir(tmp_path / "netra")
     queue_db.reset()
     db.reset(f"sqlite:///{tmp_path}/backend.db")
@@ -45,12 +56,11 @@ env = api
 def _envelope():
     r = run_demo_scan(dossier=True)
     if crypto.HAVE_CRYPTO:
-        key = crypto.make_dev_key()
         from netra_core.pipeline import attach_signature
         attach_signature(r["scan_id"],
-                         crypto.dev_sign(key, r["scan_id"],
+                         crypto.dev_sign(_test_key, r["scan_id"],
                                          r["dossier"]["sha256"]),
-                         crypto.make_dev_cert(key))
+                         _test_cert)
     return client.envelope_from_row(queue_db.get_db().get_scan(r["scan_id"]))
 
 
@@ -144,6 +154,17 @@ def test_server_side_signature_verification_enforced(api):
     resp = api.post("/ingest", json=env)
     assert resp.status_code == 422
     assert "signature invalid" in resp.json()["detail"]
+
+
+def test_ingest_rejects_unenrolled_device_certificate(api):
+    env = _envelope()
+    other_key = crypto.make_dev_key()
+    other_cert = crypto.make_dev_cert(other_key)
+    env["signature"] = crypto.dev_sign(other_key, env["scan_id"], env["dossier_sha256"])
+    env["cert_pem"] = other_cert
+    resp = api.post("/ingest", json=env)
+    assert resp.status_code == 422
+    assert "not enrolled" in resp.json()["detail"]
 
 
 def test_server_side_verification_ignores_client_sig_verified_flag(api):

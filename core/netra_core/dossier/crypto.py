@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from datetime import datetime, timezone
 
 SIG_PAYLOAD_PREFIX = "NETRA-DOSSIER-v1"
 
@@ -42,6 +43,19 @@ def unb64(text: str) -> bytes:
     return base64.b64decode(text.encode("ascii"))
 
 
+def certificate_fingerprint_sha256(cert_pem: str) -> str:
+    """Stable SHA-256 fingerprint of an X.509 certificate's DER encoding.
+
+    Gateways use this value to pin certificates enrolled for official field
+    devices. A signature that merely verifies against a supplied self-signed
+    certificate is not sufficient evidence of an authorized device.
+    """
+    if not HAVE_CRYPTO:
+        raise RuntimeError("certificate fingerprinting requires cryptography")
+    cert = x509.load_pem_x509_certificate(cert_pem.encode("ascii"))
+    return hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
+
+
 # ------------------------------------------------------------- verification
 def verify_signature(scan_id: str, pdf_sha256_hex: str,
                      signature_b64: str, cert_pem: str) -> tuple:
@@ -51,6 +65,15 @@ def verify_signature(scan_id: str, pdf_sha256_hex: str,
         return False, None
     try:
         cert = x509.load_pem_x509_certificate(cert_pem.encode("ascii"))
+        now = datetime.now(timezone.utc)
+        if hasattr(cert, "not_valid_before_utc"):
+            not_before = cert.not_valid_before_utc
+            not_after = cert.not_valid_after_utc
+        else:  # compatibility with older cryptography releases
+            not_before = cert.not_valid_before.replace(tzinfo=timezone.utc)
+            not_after = cert.not_valid_after.replace(tzinfo=timezone.utc)
+        if not_before > now or not_after < now:
+            return False, "signing certificate is not currently valid"
         pub = cert.public_key()
         if not isinstance(pub.curve, ec.SECP256R1):
             return False, "signing key is not ECDSA P-256"

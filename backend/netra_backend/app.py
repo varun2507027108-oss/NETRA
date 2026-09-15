@@ -40,6 +40,18 @@ def _gateway_token() -> str:
     return os.environ.get("NETRA_GATEWAY_TOKEN", "")
 
 
+def _trusted_certificate_fingerprints() -> frozenset[str]:
+    """Certificate fingerprints enrolled by the deploying authority.
+
+    A field device may use a self-signed Android KeyStore certificate, but a
+    gateway must only accept certificates explicitly enrolled for its estate.
+    Values are comma-separated lowercase SHA-256 fingerprints of certificate
+    DER bytes, never public keys supplied by the request itself.
+    """
+    raw = os.environ.get("NETRA_TRUSTED_CERT_SHA256S", "")
+    return frozenset(item.strip().lower() for item in raw.split(",") if item.strip())
+
+
 def require_auth(authorization: str = Header(default="")) -> None:
     token = _gateway_token()
     if not token:
@@ -109,6 +121,15 @@ def ingest(envelope: dict, session=Depends(get_db),
     sig_verified = False
     if (envelope.get("signature") and envelope.get("cert_pem")
             and envelope.get("dossier_sha256")):
+        trusted = _trusted_certificate_fingerprints()
+        if not trusted:
+            raise HTTPException(503, "device certificate trust is not configured")
+        try:
+            fingerprint = crypto.certificate_fingerprint_sha256(envelope["cert_pem"])
+        except Exception:
+            raise HTTPException(422, "signature certificate is unreadable") from None
+        if fingerprint not in trusted:
+            raise HTTPException(422, "signature certificate is not enrolled for this gateway")
         verified, verr = crypto.verify_signature(
             envelope["scan_id"], envelope["dossier_sha256"],
             envelope["signature"], envelope["cert_pem"])
