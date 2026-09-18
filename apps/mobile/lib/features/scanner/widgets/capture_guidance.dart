@@ -10,11 +10,13 @@ enum CaptureState {
 class CaptureGuidance extends StatelessWidget {
   final CaptureState state;
   final String? customMessage;
+  final String? subTip;
 
   const CaptureGuidance({
     super.key,
     required this.state,
     this.customMessage,
+    this.subTip,
   });
 
   @override
@@ -27,17 +29,17 @@ class CaptureGuidance extends StatelessWidget {
       case CaptureState.aligning:
         icon = Icons.center_focus_strong;
         iconColor = Colors.white70;
-        message = customMessage ?? 'Align package & fiducial card flat in bright light. Avoid glare.';
+        message = customMessage ?? 'Align package & calibration card flat. Tap text to focus.';
         break;
       case CaptureState.ready:
         icon = Icons.check_circle_outline;
         iconColor = const Color(0xFF2E7D32); // Emerald
-        message = customMessage ?? 'Position stabilized. Tap shutter to capture.';
+        message = customMessage ?? 'Target in focus. Tap shutter button to capture.';
         break;
       case CaptureState.processing:
         icon = Icons.hourglass_top;
         iconColor = const Color(0xFFE65100); // Amber
-        message = customMessage ?? 'Analyzing package image & native vision prepass...';
+        message = customMessage ?? 'Processing evidence & reading declarations...';
         break;
     }
 
@@ -58,14 +60,31 @@ class CaptureGuidance extends StatelessWidget {
           Icon(icon, color: iconColor, size: 18),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.2,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                if (subTip != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subTip!,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD54F),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

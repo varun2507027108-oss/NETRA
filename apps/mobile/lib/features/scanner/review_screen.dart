@@ -203,7 +203,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Review Capture Quality'),
+        title: const Text('Evidence & Photo Verification'),
       ),
       body: Stack(
         children: [

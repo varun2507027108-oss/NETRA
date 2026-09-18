@@ -41,11 +41,11 @@ class TechnicalDetailsTile extends StatelessWidget {
           iconColor: AppColors.navy,
           collapsedIconColor: AppColors.inkSecondary,
           title: Text(
-            'Technical & Vision Diagnostics',
+            'Inspection & Vision Details',
             style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.ink),
           ),
           subtitle: Text(
-            '$tokenCount tokens • $imageWidth×$imageHeight px • $packageShape',
+            '$tokenCount text lines • $imageWidth×$imageHeight px • $packageShape',
             style: AppTypography.monoSmall.copyWith(color: AppColors.inkSecondary),
           ),
           childrenPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -55,7 +55,7 @@ class TechnicalDetailsTile extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Visual OCR Bounding Boxes', style: TextStyle(fontSize: 12)),
+                const Text('Highlight Detected Text', style: TextStyle(fontSize: 12)),
                 Switch(
                   value: showOcrBoxes,
                   onChanged: onToggleOcrBoxes,
@@ -65,14 +65,14 @@ class TechnicalDetailsTile extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             _buildRow('Resolution', '$imageWidth×$imageHeight px'),
-            _buildRow('OCR Tokens Detected', '$tokenCount tokens'),
+            _buildRow('Detected Text Lines', '$tokenCount lines'),
             _buildRow('Package Shape Mode', packageShape),
             if (mmPerPx != null)
               _buildRow('Pixel Scale (mm/px)', mmPerPx!.toStringAsFixed(4)),
             if (tiltDeg != null)
               _buildRow('Surface Tilt Angle', '${tiltDeg!.toStringAsFixed(1)}°'),
             if (roiCount != null)
-              _buildRow('YOLO ROI Detections', '$roiCount boxes'),
+              _buildRow('Declaration Label Regions', '$roiCount detected'),
             const SizedBox(height: 8),
           ],
         ),

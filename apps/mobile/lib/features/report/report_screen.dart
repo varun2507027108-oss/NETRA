@@ -97,6 +97,47 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     }
   }
 
+  void _copyStatutorySummary() {
+    final buffer = StringBuffer();
+    buffer.writeln('========================================');
+    buffer.writeln('NETRA LEGAL METROLOGY INSPECTION RECORD');
+    buffer.writeln('========================================');
+    buffer.writeln('Scan ID: ${result.scanId}');
+    buffer.writeln('Timestamp: ${result.timestampUtc} (UTC)');
+    if (result.commodity.isNotEmpty) {
+      buffer.writeln('Commodity: ${result.commodity}');
+    }
+    buffer.writeln('Package Shape: ${result.shape}');
+    buffer.writeln('Inspection Verdict: ${result.verdict.name.toUpperCase()}');
+    buffer.writeln();
+
+    buffer.writeln('STATUTORY RULES COMPLIANCE:');
+    for (final check in result.checks) {
+      final statusStr = check.status.name.toUpperCase();
+      buffer.writeln('• ${check.rule}: $statusStr - ${check.description}');
+      if (check.detail != null && check.detail!.isNotEmpty) {
+        buffer.writeln('  Detail: ${check.detail}');
+      }
+    }
+    buffer.writeln();
+
+    if (result.dossier != null) {
+      buffer.writeln('EVIDENCE DOSSIER:');
+      buffer.writeln('SHA-256: ${result.dossier!.sha256}');
+      buffer.writeln('Signature: ${result.dossier!.sigStatus.name.toUpperCase()}');
+      buffer.writeln('Queue ID: ${result.dossier!.queueId}');
+    }
+    buffer.writeln('========================================');
+
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Statutory notice summary copied to clipboard for Panchnama/Memo.'),
+        duration: Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final processedImage = ref.watch(scanSessionProvider).processedImage;
@@ -240,6 +281,19 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             label: const Text(
               'RETURN TO INSPECTION HOME',
               style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.copy_all, size: 18),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: AppColors.navy, width: 1.2),
+            ),
+            onPressed: _copyStatutorySummary,
+            label: const Text(
+              'COPY STATUTORY NOTICE SUMMARY (PANCHNAMA)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.navy),
             ),
           ),
           if (result.dossier != null) ...[

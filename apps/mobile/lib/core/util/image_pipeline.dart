@@ -44,6 +44,9 @@ abstract final class ImagePipeline {
       throw Exception('Failed to decode captured image');
     }
 
+    // Bake EXIF orientation so image pixels are truly upright across all device sensors
+    decoded = img.bakeOrientation(decoded);
+
     // 2. Resize once if longest side > 1600
     final int longestSide = decoded.width > decoded.height ? decoded.width : decoded.height;
     if (longestSide > 1600) {

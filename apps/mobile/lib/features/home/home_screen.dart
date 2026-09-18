@@ -5,6 +5,7 @@ import '../../core/state/scan_session.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../scan_setup/scan_setup_screen.dart';
+import '../scanner/scanner_screen.dart';
 import 'widgets/recent_inspections.dart';
 
 /// Field tool Home Screen (Brief §5.1).
@@ -81,7 +82,43 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+
+          // Quick Inspection Presets (1-tap field shortcut)
+          Row(
+            children: [
+              Expanded(
+                child: _buildPresetCard(
+                  context,
+                  ref,
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Pouch / Sachet',
+                  shape: PackageShape.pouch,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPresetCard(
+                  context,
+                  ref,
+                  icon: Icons.local_drink_outlined,
+                  label: 'Bottle / Can',
+                  shape: PackageShape.cylindrical,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildPresetCard(
+                  context,
+                  ref,
+                  icon: Icons.check_box_outline_blank,
+                  label: 'Box / Carton',
+                  shape: PackageShape.rectangular,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
 
           // 2. Recent Inspection Strip
           const Text('RECENT INSPECTION', style: AppTypography.sectionLabel),
@@ -245,6 +282,53 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(height: 2),
         Text(label, style: AppTypography.caption.copyWith(fontSize: 9)),
       ],
+    );
+  }
+
+  Widget _buildPresetCard(
+    BuildContext context,
+    WidgetRef ref, {
+    required IconData icon,
+    required String label,
+    required PackageShape shape,
+  }) {
+    return InkWell(
+      onTap: () {
+        ref.read(scanSessionProvider.notifier).resetSession();
+        ref.read(scanSessionProvider.notifier).updateConfig(
+              const ScanConfig().copyWith(
+                shape: shape,
+                fiducialMm: 40.0,
+              ),
+            );
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const ScannerScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 24, color: AppColors.navy),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                color: AppColors.inkPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
