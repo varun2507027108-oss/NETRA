@@ -45,9 +45,9 @@ LINE_V_OVERLAP = 0.4     # vertical overlap ratio that groups tokens to a line
 RIGHT_SLACK = 0.3        # tolerance for "to the right of the anchor"
 BELOW_GAP = 1.5          # vertical gap for wrapped-value pickup (L3)
 BELOW_H_OVERLAP = 0.2    # horizontal alignment required for L3
-PARA_GAP = 1.3           # paragraph line spacing tolerance (L4)
+PARA_GAP = 2.2           # paragraph line spacing tolerance (L4)
 PARA_H_OVERLAP = 0.15    # paragraph column alignment (L4)
-PARA_MAX_LINES = 5       # statutory address blocks cap at 5 lines
+PARA_MAX_LINES = 12      # statutory address blocks cap at 12 lines
 MIN_ALPHA = 3            # product-name heuristic: min alphabetic chars
 MIN_TEXT = 8             # "text"-mode acceptance: min raw length
 PRODUCT_TOP_FRAC = 0.65  # product name expected in top 65% of token cloud
@@ -74,14 +74,17 @@ _ANCHORS = {
     ),
     FIELD_ORIGIN: (
         r"country\s+of\s+origin", r"\borigin\b", r"\bmade\s+in\b",
-        r"\bproduct\s+of\b", r"\bmanufactur(?:ed|ing)\s+in\b",
-        r"\bpacked\s+in\b", r"\bassembled\s+in\b",
+        r"\bproduct\s+of\b", r"\bassembled\s+in\b",
     ),
     FIELD_MFG_ADDRESS: (
         r"\bmfd\.?\s*by\b", r"\bmfg\.?\s*by\b", r"\bmkt?d\.?\s*by\b",
-        r"\bmanufactur(?:ed|er|ers|ing)?\s*by\b", r"\bmanufacturers?\b",
-        r"\bimport(?:er|ed|ers|ing)?\b", r"\bpacked\s+by\b",
-        r"\bmarket(?:ed|er|ing)?\s*by\b",
+        r"\bmanufactur(?:ed|er|ers|ing)?(?:\s+[a-z]+){0,3}\s*by\b",
+        r"\bmanufactur(?:ed|er|ers|ing)\s+in\b",
+        r"\bmanufacturers?\b",
+        r"\bimport(?:er|ed|ers|ing)?(?:\s+[a-z]+){0,3}\s*by\b",
+        r"\bimport(?:er|ed|ers|ing)\b",
+        r"\bpack(?:ed|er|ing)?(?:\s+[a-z]+){0,3}\s*by\b",
+        r"\bmarket(?:ed|er|ing)?(?:\s+[a-z]+){0,3}\s*by\b",
     ),
     FIELD_CONSUMER_CARE: (
         r"consumer\s*(?:care|complaint|service|relation|grievance)",
@@ -103,8 +106,8 @@ SPECS = (
     FieldSpec(FIELD_MRP, "money"),
     FieldSpec(FIELD_USP, "usp"),
     FieldSpec(FIELD_MFG_DATE, "date"),
-    FieldSpec(FIELD_ORIGIN, "text"),
     FieldSpec(FIELD_MFG_ADDRESS, "text", paragraph=True),
+    FieldSpec(FIELD_ORIGIN, "text"),
     FieldSpec(FIELD_CONSUMER_CARE, "text", paragraph=True),
 )
 

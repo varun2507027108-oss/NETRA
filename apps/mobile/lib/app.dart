@@ -73,13 +73,13 @@ class _SplashScreen extends StatelessWidget {
   }
 }
 
-class _IncompatibleCoreScreen extends StatelessWidget {
+class _IncompatibleCoreScreen extends ConsumerWidget {
   final String message;
 
   const _IncompatibleCoreScreen({required this.message});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
@@ -119,7 +119,22 @@ class _IncompatibleCoreScreen extends StatelessWidget {
                   style: AppTypography.monoSmall,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.navy,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  ref.invalidate(pingStatusProvider);
+                },
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                label: const Text(
+                  'RETRY CORE CONNECTION',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+              const SizedBox(height: 20),
               const Text(
                 'The Python metrology core must report schema_version == 1 '
                 'and be properly embedded via Chaquopy. Contact technical operations.',

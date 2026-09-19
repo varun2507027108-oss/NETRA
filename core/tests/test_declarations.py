@@ -44,6 +44,10 @@ class TestPin:
     def test_spaced_bare(self):
         assert extract_pin("New Delhi 110 001") == "110001"
 
+    def test_hyphenated_spaced(self):
+        assert extract_pin("Changodar - 382 213") == "382213"
+        assert extract_pin("Ahmedabad - 380-054") == "380054"
+
     def test_phone_is_not_pin(self):
         assert extract_pin("Tel: 1800 123 4567, Mumbai 400093") == "400093"
 
@@ -59,6 +63,11 @@ class TestAddress:
         r = check_address(
             "Mfd. by: HUL Ltd., Unilever House, Andheri East, Mumbai 400093")
         assert r.ok and r.pin == "400093"
+
+    def test_manufactured_in_india(self):
+        r = check_address(
+            "Manufactured in India by: VINI COSMETICS PVT. LTD., Changodar - 382 213")
+        assert r.ok and r.pin == "382213"
 
     def test_missing_pin(self):
         r = check_address("Mfd by XYZ Foods, Industrial Area, Pune")
@@ -148,6 +157,13 @@ class TestConsumerCare:
     def test_missing_phone(self):
         r = check_consumer_care("ABC Ltd, Mumbai 400050, care@abc.in")
         assert not r.ok and "helpline" in r.detail
+
+    def test_landline_and_address_as_above_proviso(self):
+        r = check_consumer_care(
+            "Customer Care Executive at the Registered Office address as above or on "
+            "Telephone Number +91-79-26856029, email: care@vinicosmetics.com",
+            mfg_pin="382213")
+        assert r.ok and "care@vinicosmetics.com" in r.detail
 
 
 class TestNetQuantity:

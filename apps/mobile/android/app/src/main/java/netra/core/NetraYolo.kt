@@ -75,9 +75,13 @@ class NetraYolo(
 
     fun detect(src: Bitmap): List<RoiBox> {
         val (boxed, meta) = letterbox(src)
-        val raw = Array(1) { Array(channels) { FloatArray(anchors) } }
-        interpreter.run(preprocess(boxed), raw)
-        return decode(raw[0], meta)
+        try {
+            val raw = Array(1) { Array(channels) { FloatArray(anchors) } }
+            interpreter.run(preprocess(boxed), raw)
+            return decode(raw[0], meta)
+        } finally {
+            boxed.recycle()
+        }
     }
 
     /** Golden-test hook: feed recorded input, return raw [1][9][8400]. */
@@ -114,9 +118,16 @@ class NetraYolo(
         val padX = (s - nw) / 2
         val padY = (s - nh) / 2
         val out = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888)
-        Canvas(out).apply {
-            drawColor(Color.rgb(cfg.padGray, cfg.padGray, cfg.padGray))
-            drawBitmap(Bitmap.createScaledBitmap(src, nw, nh, true), padX.toFloat(), padY.toFloat(), null)
+        val scaled = if (nw == src.width && nh == src.height) src else Bitmap.createScaledBitmap(src, nw, nh, true)
+        try {
+            Canvas(out).apply {
+                drawColor(Color.rgb(cfg.padGray, cfg.padGray, cfg.padGray))
+                drawBitmap(scaled, padX.toFloat(), padY.toFloat(), null)
+            }
+        } finally {
+            if (scaled !== src) {
+                scaled.recycle()
+            }
         }
         return out to LetterboxMeta(gain, padX.toFloat(), padY.toFloat())
     }

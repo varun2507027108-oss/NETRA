@@ -77,10 +77,10 @@ def check_mrp(text: str) -> DeclarationResult:
 # ---- Rule 6(1)(a): address & PIN --------------------------------------------
 _LONG_NUMBER_RE = re.compile(r"(?<![0-9])(?:[0-9][\-\s]?){6,}[0-9](?![0-9])")
 _PIN_MARKER_RE = re.compile(
-    r"\b(?:pin\s*code|pincode|pin|p\.?\s*o\.?)\s*[:\-]?\s*([1-9][0-9]{2})\s?([0-9]{3})\b",
+    r"\b(?:pin\s*code|pincode|pin|p\.?\s*o\.?)\s*[:\-]?\s*([1-9][0-9]{2})[\s\-]?([0-9]{3})\b",
     re.IGNORECASE)
 _PIN_BARE_RE = re.compile(r"(?<![0-9])[1-9][0-9]{5}(?![0-9])")
-_PIN_SPACED_RE = re.compile(r"(?<![0-9])[1-9][0-9]{2}\s[0-9]{3}(?![0-9])")
+_PIN_SPACED_RE = re.compile(r"(?<![0-9])[1-9][0-9]{2}[\s\-][0-9]{3}(?![0-9])")
 
 
 def extract_pin(text: str) -> Optional[str]:
@@ -94,7 +94,7 @@ def extract_pin(text: str) -> Optional[str]:
         return m.group(0)
     m = _PIN_SPACED_RE.search(t)
     if m:
-        return m.group(0).replace(" ", "")
+        return m.group(0).replace(" ", "").replace("-", "")
     return None
 
 
@@ -222,40 +222,52 @@ def check_mfg_date(text: str) -> DeclarationResult:
 # ---- Rule 6(1)(n): consumer care ----------------------------------------------
 _PHONE_RE = re.compile(
     r"(?<![0-9])(?:"
-    r"1800[\-\s]?[0-9]{3,4}[\-\s]?[0-9]{3,4}"          # toll-free 1800
-    r"|1860[\-\s]?[0-9]{3,4}[\-\s]?[0-9]{3,4}"          # 1860 helplines
-    r"|\+?91[\-\s]?[6-9][0-9]{4}[\-\s]?[0-9]{5}"        # +91 mobile
-    r"|[6-9][0-9]{9}"                                   # mobile
-    r"|[6-9][0-9]{4}[\-\s][0-9]{5}"                     # mobile, split
-    r"|0[1-9][0-9]{1,4}[\-\s]?[0-9]{6,8}"               # landline with STD
-    r"|[0-9]{3,5}[\-\s][0-9]{6,8}"                      # generic split
+    r"1800[\-\s\.]?[0-9]{2,4}[\-\s\.]?[0-9]{3,4}(?:[\-\s\.]?[0-9]{3,4})?"  # 1800 toll-free
+    r"|1860[\-\s\.]?[0-9]{2,4}[\-\s\.]?[0-9]{3,4}(?:[\-\s\.]?[0-9]{3,4})?"  # 1860 helplines
+    r"|\+?91[\-\s\.]?\(?0?[1-9][0-9]{1,4}\)?[\-\s\.]?[0-9]{6,8}"             # +91 landline (e.g. +91-79-26856029)
+    r"|\+?91[\-\s\.]?[6-9][0-9]{4}[\-\s\.]?[0-9]{5}"                         # +91 mobile split
+    r"|\+?91[\-\s\.]?[6-9][0-9]{9}"                                          # +91 mobile 10-digit
+    r"|[6-9][0-9]{9}"                                                         # 10-digit mobile
+    r"|[6-9][0-9]{4}[\-\s\.]?[0-9]{5}"                                        # mobile split
+    r"|\(?0[1-9][0-9]{1,4}\)?[\-\s\.]?[0-9]{6,8}"                            # STD with 0: 079-26856029
+    r"|[1-9][0-9]{1,4}[\-\s\.]+[0-9]{6,8}"                                    # STD without 0, e.g. 79-26856029
     r")(?![0-9])")
 _EMAIL_RE = re.compile(
     r"[a-z0-9._%+\-]+\s*(?:@|\(at\))\s*[a-z0-9.\-]+\.[a-z]{2,}", re.IGNORECASE)
+_AS_ABOVE_RE = re.compile(
+    r"\b(?:address\s+as\s+above|same\s+as\s+above|as\s+above|above\s+address|"
+    r"address\s+mentioned\s+above|registered\s+office\s+address\s+as\s+above|"
+    r"registered\s+office\s+address|office\s+address\s+as\s+above|"
+    r"at\s+(?:the\s+)?(?:registered\s+office\s+)?address(?:\s+as\s+above)?|"
+    r"contact\s+at\s+address)\b",
+    re.IGNORECASE)
 
 
-def check_consumer_care(text: str) -> DeclarationResult:
+def check_consumer_care(text: str,
+                        mfg_pin: Optional[str] = None) -> DeclarationResult:
     t = normalize(text or "")
     if not t:
         return DeclarationResult(
             False, "Consumer care details not found (Rule 6(1)(n)).")
     phone = _PHONE_RE.search(t)
     email = _EMAIL_RE.search(t)
-    pin = extract_pin(t)
+    pin = extract_pin(t) or mfg_pin
+    has_address = bool(pin or _AS_ABOVE_RE.search(t))
     missing = []
     if phone is None:
         missing.append("telephone helpline")
     if email is None:
         missing.append("email address")
-    if pin is None:
+    if not has_address:
         missing.append("postal address with PIN")
     if missing:
         return DeclarationResult(
             False, f"Consumer care incomplete — missing {', '.join(missing)}.")
+    address_desc = f"PIN {pin}" if pin else "address as above (Rule 6(1)(n) proviso)"
     return DeclarationResult(
         True,
         f"Consumer care complete (tel {phone.group(0)}, email "
-        f"{email.group(0)}, PIN {pin}).", pin=pin)
+        f"{email.group(0)}, {address_desc}).", pin=pin)
 
 
 # ---- Rule 6(1)(c): net quantity -------------------------------------------------

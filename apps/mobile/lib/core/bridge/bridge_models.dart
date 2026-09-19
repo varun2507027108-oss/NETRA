@@ -622,6 +622,29 @@ class ScanResult {
   });
 
   factory ScanResult.fromJson(Map<String, dynamic> json) {
+    // Top-level in-band channel error envelope guard (e.g. native exception or offline error)
+    if (json.containsKey('error') && !json.containsKey('schema_version')) {
+      final err = json['error'];
+      final scanErr = err is Map<String, dynamic>
+          ? ScanError.fromJson(err)
+          : ScanError(code: 'INTERNAL', message: err?.toString() ?? 'Internal bridge error');
+      return ScanResult(
+        schemaVersion: 1,
+        scanId: json['scan_id'] as String? ?? 'scan_error',
+        verdict: Verdict.retry,
+        capturedUtc: DateTime.now().toUtc().toIso8601String(),
+        completedUtc: DateTime.now().toUtc().toIso8601String(),
+        totalMs: 0.0,
+        timingsMs: const {},
+        quality: const Quality(ok: false, laplacianVar: 0.0, glarePct: 0.0, prompts: []),
+        ocr: const OcrResult(enginesUsed: [], tokens: []),
+        fields: const {},
+        checks: const [],
+        summary: const CheckSummary(total: 0, pass: 0, fail: 0, na: 0),
+        error: scanErr,
+      );
+    }
+
     // Validate required top-level presence (contract §4: exactly 17 keys, always present)
     const requiredKeys = [
       'schema_version',
@@ -879,6 +902,20 @@ class SyncSummary {
   });
 
   factory SyncSummary.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('error') && !json.containsKey('schema_version')) {
+      final err = json['error'];
+      return SyncSummary(
+        schemaVersion: 1,
+        attempted: 0,
+        synced: 0,
+        failed: 1,
+        deferred: 0,
+        remaining: 0,
+        offline: true,
+        error: err is Map ? (err['message']?.toString() ?? err.toString()) : err.toString(),
+      );
+    }
+
     if (!json.containsKey('schema_version') ||
         !json.containsKey('attempted') ||
         !json.containsKey('synced') ||
@@ -932,6 +969,20 @@ class SigResponse {
   });
 
   factory SigResponse.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('error') && !json.containsKey('schema_version')) {
+      final err = json['error'];
+      return SigResponse(
+        schemaVersion: 1,
+        scanId: json['scan_id'] as String? ?? 'unknown',
+        accepted: false,
+        sigStatus: SigStatus.unsupported,
+        verified: false,
+        error: err is Map<String, dynamic>
+            ? ScanError.fromJson(err)
+            : ScanError(code: 'ERROR', message: err.toString()),
+      );
+    }
+
     if (!json.containsKey('schema_version') ||
         !json.containsKey('scan_id') ||
         !json.containsKey('accepted') ||

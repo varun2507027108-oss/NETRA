@@ -43,6 +43,14 @@
 -keep class org.opencv.** { *; }
 -dontwarn org.opencv.**
 
+# Keep Netra native core plugin, vision, YOLO, and keystore classes
+-keep class netra.core.** { *; }
+-keep interface netra.core.** { *; }
+
+# Keep TensorFlow Lite classes
+-keep class org.tensorflow.lite.** { *; }
+-dontwarn org.tensorflow.lite.**
+
 # Keep Chaquopy classes
 -keep class com.chaquo.python.** { *; }
 -dontwarn com.chaquo.python.**

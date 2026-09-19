@@ -40,17 +40,16 @@ class ScannerScreen extends ConsumerStatefulWidget {
   ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+class _ScannerScreenState extends ConsumerState<ScannerScreen>
+    with WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
-  ResolutionPreset _activePreset = ResolutionPreset.veryHigh;
   bool _isCapturing = false;
   bool _isTorchOn = false;
   PackagingLightingMode _activeLightingMode = PackagingLightingMode.normal;
   bool _isFocusLocked = false;
   double _minExposureOffset = 0.0;
   double _maxExposureOffset = 0.0;
-  double _currentExposureOffset = 0.0;
   bool _showShutterFlash = false;
   String? _statusText;
 
@@ -65,7 +64,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = _controller;
+
+    // App state changed before camera initialized
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      // Free the camera resource when inactive to prevent locking Camera2
+      cameraController.dispose();
+      _controller = null;
+      if (mounted) setState(() {});
+    } else if (state == AppLifecycleState.resumed) {
+      // Re-initialize camera when returning to foreground
+      _initCamera();
+    }
   }
 
   Future<void> _initCamera() async {
@@ -77,13 +97,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           orElse: () => _cameras!.first,
         );
 
-        // Multi-tier cascade: max -> veryHigh (1080p) -> high (720p)
+        // Multi-tier cascade: ultraHigh (4K/8MP) -> veryHigh (1080p) -> high (720p) -> max (fallback)
         CameraController? controller;
-        ResolutionPreset chosenPreset = ResolutionPreset.veryHigh;
         for (final preset in [
-          ResolutionPreset.max,
+          ResolutionPreset.ultraHigh,
           ResolutionPreset.veryHigh,
           ResolutionPreset.high,
+          ResolutionPreset.max,
         ]) {
           try {
             final testController = CameraController(
@@ -94,7 +114,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             );
             await testController.initialize();
             controller = testController;
-            chosenPreset = preset;
             break;
           } catch (_) {
             continue;
@@ -106,7 +125,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         }
 
         _controller = controller;
-        _activePreset = chosenPreset;
 
         // Fetch zoom boundaries
         try {
@@ -144,6 +162,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Ensure torch is turned off upon exit
     if (_isTorchOn) {
       _controller?.setFlashMode(FlashMode.off);
@@ -184,7 +203,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       if (mounted) {
         setState(() {
           _activeLightingMode = nextMode;
-          _currentExposureOffset = targetOffset;
         });
         HapticFeedback.selectionClick();
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -343,9 +361,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
       // Call Kotlin native vision prepass (fiducial detection, quality check, mm_per_px)
       final bridge = ref.read(netraBridgeProvider);
+      final fiducialMm = ref.read(scanSessionProvider).config.fiducialMm;
       final prepassMap = await bridge.visionPrepass(
         imageB64: processed.base64,
-        options: {'marker_size_mm': ref.read(scanSessionProvider).config.fiducialMm},
+        options: {
+          'marker_side_mm': fiducialMm,
+          'marker_size_mm': fiducialMm,
+        },
       );
 
       ref.read(scanSessionProvider.notifier).setCapturedImage(
@@ -362,6 +384,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           _isTorchOn = false;
         } catch (_) {}
       }
+
+      if (!mounted) return;
 
       // Navigate to ReviewScreen. If officer taps RETAKE, it pops back to camera cleanly
       await Navigator.of(context).push(
@@ -506,6 +530,39 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                      ),
                    );
                 },
+              ),
+            )
+          else if (_statusText != null && !_isInitialized)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.videocam_off_outlined, color: Colors.amber, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      _statusText!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _statusText = null;
+                        });
+                        _initCamera();
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry Camera'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E88E5),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else

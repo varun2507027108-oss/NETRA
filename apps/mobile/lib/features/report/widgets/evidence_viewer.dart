@@ -115,10 +115,30 @@ class EvidenceViewerDialog extends StatelessWidget {
               style: AppTypography.body.copyWith(fontWeight: FontWeight.w500),
             ),
             if (check.evidenceBbox != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Bounding Box: [${check.evidenceBbox!.x}, ${check.evidenceBbox!.y}, ${check.evidenceBbox!.w}, ${check.evidenceBbox!.h}]',
-                style: AppTypography.monoSmall.copyWith(color: AppColors.inkSecondary),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    check.status == CheckStatus.pass
+                        ? 'Highlighted area: Compliant declaration'
+                        : check.status == CheckStatus.fail
+                            ? 'Highlighted area: Discrepancy detected'
+                            : 'Highlighted area: Reference',
+                    style: AppTypography.caption.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
             const SizedBox(height: 12),

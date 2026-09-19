@@ -50,10 +50,27 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       );
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 15),
-    );
+    Position? position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 8),
+      );
+    } catch (_) {
+      // In godowns or warehouses satellite lock can time out; try last known location
+      try {
+        position = await Geolocator.getLastKnownPosition();
+      } catch (_) {
+        position = null;
+      }
+    }
+
+    if (position == null) {
+      throw const _OfficerActionException(
+        'Unable to get GPS fix indoors (e.g. warehouse/godown). You can continue the inspection by unchecking "Attach GPS" in settings, or step near an opening to acquire signal.',
+      );
+    }
+
     return {
       'lat': position.latitude,
       'lon': position.longitude,
@@ -115,10 +132,13 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
       }
 
       // 4. ML ROI boxes from prepass (v1.4.0)
-      final roiBoxes = (prepass['roi_boxes'] as List<dynamic>?)
-          ?.whereType<Map<String, dynamic>>()
+      final rawRoiBoxes = prepass['roi_boxes'] as List<dynamic>?;
+      final roiBoxes = rawRoiBoxes
+          ?.map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
+          .whereType<Map<String, dynamic>>()
           .toList();
-      final roiFrame = prepass['roi_frame'] as Map<String, dynamic>?;
+      final rawRoiFrame = prepass['roi_frame'];
+      final roiFrame = rawRoiFrame is Map ? Map<String, dynamic>.from(rawRoiFrame) : null;
       if (roiBoxes != null && roiFrame != null) {
         builder.setRoiBoxes(
           boxes: roiBoxes,
@@ -197,7 +217,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
     final geometry = prepass['geometry'] as Map<String, dynamic>?;
     final bool markerDetected = geometry?['marker_detected'] as bool? ?? false;
     final double? mmPerPx = (geometry?['mm_per_px'] as num?)?.toDouble();
-    final double? tiltDeg = (geometry?['tilt_degrees'] as num?)?.toDouble();
+    final double? tiltDeg = ((geometry?['tilt_deg'] ?? geometry?['tilt_degrees']) as num?)?.toDouble();
 
     final roiBoxes = prepass['roi_boxes'] as List<dynamic>?;
 

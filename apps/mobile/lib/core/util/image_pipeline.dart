@@ -26,6 +26,54 @@ class ProcessedImage {
   });
 }
 
+class _DecodeResizePayload {
+  final Uint8List singleBytes;
+  final int width;
+  final int height;
+
+  const _DecodeResizePayload({
+    required this.singleBytes,
+    required this.width,
+    required this.height,
+  });
+}
+
+_DecodeResizePayload _processImageInWorker(Uint8List rawBytes) {
+  img.Image? decoded = img.decodeImage(rawBytes);
+  if (decoded == null) {
+    throw Exception('Failed to decode captured image');
+  }
+
+  // Bake EXIF orientation so image pixels are truly upright across all device sensors
+  decoded = img.bakeOrientation(decoded);
+
+  // 2. Resize once if longest side > 1600
+  final int longestSide = decoded.width > decoded.height ? decoded.width : decoded.height;
+  if (longestSide > 1600) {
+    if (decoded.width >= decoded.height) {
+      decoded = img.copyResize(
+        decoded,
+        width: 1600,
+        interpolation: img.Interpolation.average,
+      );
+    } else {
+      decoded = img.copyResize(
+        decoded,
+        height: 1600,
+        interpolation: img.Interpolation.average,
+      );
+    }
+  }
+
+  // 3. encodeJpg(quality: 90)
+  final singleBytes = img.encodeJpg(decoded, quality: 90);
+  return _DecodeResizePayload(
+    singleBytes: Uint8List.fromList(singleBytes),
+    width: decoded.width,
+    height: decoded.height,
+  );
+}
+
 /// Image Pipeline adhering strictly to Brief §6:
 /// 1. read raw bytes from camera
 /// 2. decodeJpg -> if longest side > 1600, copyResize ONCE (interpolation: average)
@@ -40,34 +88,16 @@ abstract final class ImagePipeline {
 
   static Future<ProcessedImage> processCapturedImage(String rawImagePath) async {
     final rawBytes = await File(rawImagePath).readAsBytes();
-    img.Image? decoded = img.decodeImage(rawBytes);
-    if (decoded == null) {
-      throw Exception('Failed to decode captured image');
-    }
-
-    // Bake EXIF orientation so image pixels are truly upright across all device sensors
-    decoded = img.bakeOrientation(decoded);
-
-    // 2. Resize once if longest side > 1600
-    final int longestSide = decoded.width > decoded.height ? decoded.width : decoded.height;
-    if (longestSide > 1600) {
-      if (decoded.width >= decoded.height) {
-        decoded = img.copyResize(
-          decoded,
-          width: 1600,
-          interpolation: img.Interpolation.average,
-        );
-      } else {
-        decoded = img.copyResize(
-          decoded,
-          height: 1600,
-          interpolation: img.Interpolation.average,
-        );
+    // Clean up camera's raw output file to avoid storage bloat on field devices
+    try {
+      final rawFile = File(rawImagePath);
+      if (await rawFile.exists()) {
+        await rawFile.delete();
       }
-    }
-
-    // 3. encodeJpg(quality: 90)
-    final singleBytes = img.encodeJpg(decoded, quality: 90);
+    } catch (_) {}
+    // Execute CPU-heavy decode, orientation-baking, resize, and re-encoding in background worker isolate
+    final workerResult = await compute(_processImageInWorker, rawBytes);
+    final singleBytes = workerResult.singleBytes;
 
     // 4. write to temp file
     final tempDir = await getTemporaryDirectory();
@@ -112,8 +142,8 @@ abstract final class ImagePipeline {
       file: tempFile,
       base64: imageB64,
       sha256: imageSha,
-      width: decoded.width,
-      height: decoded.height,
+      width: workerResult.width,
+      height: workerResult.height,
       tokens: tokens,
     );
   }

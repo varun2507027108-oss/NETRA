@@ -33,24 +33,18 @@ object NetraCorePlugin {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var cfg: String? = null
+    private var appContext: Context? = null
 
     fun register(context: Context, messenger: BinaryMessenger) {
         // Chaquopy must be started once before the first Python call, and
         // configure() must pin the evidence directory (ledger + dossiers)
         // to app-internal storage BEFORE the first scan (contract §2).
-        val appContext = context.applicationContext
-        NetraVision.attach(appContext)
+        val ctx = context.applicationContext
+        appContext = ctx
+        NetraVision.attach(ctx)
         executor.execute {
             try {
-                if (!Python.isStarted()) {
-                    Python.start(AndroidPlatform(appContext))
-                }
-                val api = Python.getInstance()
-                    .getModule("netra_core.bridge.chaquopy_api")
-                val cfg = JSONObject()
-                    .put("data_dir", appContext.filesDir.absolutePath)
-                    .toString()
-                api.callAttr("configure", cfg)
+                ensurePythonStarted(ctx)
             } catch (_: Exception) {
                 // Not fatal at startup: the first scan surfaces the error
                 // in-band; the UI still loads.
@@ -61,8 +55,24 @@ object NetraCorePlugin {
         }
     }
 
+    private fun ensurePythonStarted(ctx: Context) {
+        if (!Python.isStarted()) {
+            Python.start(AndroidPlatform(ctx))
+        }
+        val api = Python.getInstance()
+            .getModule("netra_core.bridge.chaquopy_api")
+        val cfg = JSONObject()
+            .put("data_dir", ctx.filesDir.absolutePath)
+            .toString()
+        api.callAttr("configure", cfg)
+    }
+
     private fun handle(call: MethodCall, result: MethodChannel.Result) {
         val response: String = try {
+            val ctx = appContext
+            if (ctx != null && !Python.isStarted()) {
+                ensurePythonStarted(ctx)
+            }
             val api = Python.getInstance()
                 .getModule("netra_core.bridge.chaquopy_api")
             when (call.method) {

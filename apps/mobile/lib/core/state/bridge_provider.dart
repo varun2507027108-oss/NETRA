@@ -10,9 +10,21 @@ final netraBridgeProvider = Provider<NetraBridge>((ref) {
 
 /// Startup ping check state provider.
 /// Verifies schema_version == 1 and reads PingCapabilities.
+/// Includes a resilient retry loop to allow Chaquopy background initialization on slower devices.
 final pingStatusProvider = FutureProvider<PingPayload>((ref) async {
   final bridge = ref.watch(netraBridgeProvider);
-  return bridge.ping();
+  Object? lastError;
+  for (var attempt = 1; attempt <= 4; attempt++) {
+    try {
+      return await bridge.ping();
+    } catch (e) {
+      lastError = e;
+      if (attempt < 4) {
+        await Future.delayed(Duration(milliseconds: 300 * attempt));
+      }
+    }
+  }
+  throw lastError ?? Exception('Failed to connect to Netra Core');
 });
 
 /// Polling QueueStatus provider (refreshes automatically or manually).

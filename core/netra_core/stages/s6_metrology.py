@@ -170,20 +170,25 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
 
     # ---- Rule 6(1)(a): manufacturer / packer / importer ------------------------------
     raw = _raw(ctx, "mfg_address")
+    mfg_pin = None
     if raw is None:
         add("6(1)(a)", False,
             "Manufacturer / packer / importer details not detected.",
             field="mfg_address")
     else:
         r = decl.check_address(raw)
+        mfg_pin = r.pin
         add("6(1)(a)", r.ok, r.detail, field="mfg_address")
 
     # ---- Rule 6(1)(aa): country of origin ---------------------------------------------
     origin_raw = _raw(ctx, "origin")
+    if not origin_raw:
+        origin_raw = _raw(ctx, "mfg_address") or ""
     imported = decl.looks_imported(_raw(ctx, "mfg_address") or "",
                                    origin_raw or "")
     r = decl.check_country_of_origin(origin_raw or "", imported_hint=imported)
-    add("6(1)(aa)", r.ok, r.detail, field="origin")
+    origin_field = "origin" if _raw(ctx, "origin") else ("mfg_address" if _raw(ctx, "mfg_address") else None)
+    add("6(1)(aa)", r.ok, r.detail, field=origin_field)
 
     # ---- Rule 6(1)(n): consumer care -----------------------------------------------------
     raw = _raw(ctx, "consumer_care")
@@ -191,7 +196,7 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
         add("6(1)(n)", False, "Consumer care details not detected.",
             field="consumer_care")
     else:
-        r = decl.check_consumer_care(raw)
+        r = decl.check_consumer_care(raw, mfg_pin=mfg_pin)
         add("6(1)(n)", r.ok, r.detail, field="consumer_care")
 
     # ---- Rule 6(1)(b): common / generic name ----------------------------------------------
