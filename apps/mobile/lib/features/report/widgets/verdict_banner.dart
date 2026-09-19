@@ -52,12 +52,39 @@ class VerdictBanner extends StatelessWidget {
           Expanded(
             child: Text(verdictText, style: AppTypography.verdictBanner),
           ),
-          Text(
-            '$failCount FAIL\n$passCount PASS · $naCount N/A',
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontFamily: 'monospace', fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white, height: 1.25,
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  failCount > 0
+                      ? '$failCount ${failCount == 1 ? "VIOLATION" : "VIOLATIONS"}'
+                      : (verdict == Verdict.retry ? 'UNCLEAR' : 'ALL COMPLIANT'),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$passCount Compliant${naCount > 0 ? " · $naCount Exempt" : ""}',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.92),
+                ),
+              ),
+            ],
           ),
         ],
       ),

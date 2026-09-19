@@ -19,18 +19,19 @@ import 'widgets/focus_reticle.dart';
 /// - 1x / 2x Optical & Digital Zoom controls to prevent casting phone shadows
 /// - Anti-blur focus locking prior to shutter exposure
 /// - Shutter flash confirmation & haptic feedback
-/// Exposure compensation presets tailored to retail packaging substrates.
-enum EvPreset {
-  standard(offset: 0.0, label: '0.0 EV', name: 'Standard'),
-  antiGlare(offset: -1.0, label: '-1.0 EV', name: 'Anti-Glare'),
-  foil(offset: -2.0, label: '-2.0 EV', name: 'Foil / Blister'),
-  boost(offset: 1.0, label: '+1.0 EV', name: 'Low Light / Godown');
+/// Packaging lighting presets to prevent glare and reflections on different packet types.
+enum PackagingLightingMode {
+  normal(offset: 0.0, label: 'Normal', name: 'Normal Lighting'),
+  antiGlare(offset: -1.0, label: 'Anti-Glare', name: 'Glossy Plastic'),
+  foil(offset: -2.0, label: 'Foil Pack', name: 'Shiny Foil'),
+  brighten(offset: 1.0, label: 'Brighten', name: 'Dark Room');
 
   final double offset;
   final String label;
   final String name;
-  const EvPreset({required this.offset, required this.label, required this.name});
+  const PackagingLightingMode({required this.offset, required this.label, required this.name});
 }
+
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -45,8 +46,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   ResolutionPreset _activePreset = ResolutionPreset.veryHigh;
   bool _isCapturing = false;
   bool _isTorchOn = false;
-  EvPreset _activeEvPreset = EvPreset.standard;
-  bool _isAeAfLocked = false;
+  PackagingLightingMode _activeLightingMode = PackagingLightingMode.normal;
+  bool _isFocusLocked = false;
   double _minExposureOffset = 0.0;
   double _maxExposureOffset = 0.0;
   double _currentExposureOffset = 0.0;
@@ -171,18 +172,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  Future<void> _cycleEvPreset() async {
+  Future<void> _cycleLightingMode() async {
     if (_controller == null || !_controller!.value.isInitialized) return;
-    final presets = EvPreset.values;
-    final nextIndex = (presets.indexOf(_activeEvPreset) + 1) % presets.length;
-    final nextPreset = presets[nextIndex];
+    final modes = PackagingLightingMode.values;
+    final nextIndex = (modes.indexOf(_activeLightingMode) + 1) % modes.length;
+    final nextMode = modes[nextIndex];
 
     try {
-      final targetOffset = nextPreset.offset.clamp(_minExposureOffset, _maxExposureOffset);
+      final targetOffset = nextMode.offset.clamp(_minExposureOffset, _maxExposureOffset);
       await _controller!.setExposureOffset(targetOffset);
       if (mounted) {
         setState(() {
-          _activeEvPreset = nextPreset;
+          _activeLightingMode = nextMode;
           _currentExposureOffset = targetOffset;
         });
         HapticFeedback.selectionClick();
@@ -190,8 +191,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${nextPreset.name} (${targetOffset >= 0 ? "+" : ""}${targetOffset.toStringAsFixed(1)} EV): '
-              '${nextPreset == EvPreset.foil ? "Suppresses glare on metallic foil/blister packs." : (nextPreset == EvPreset.antiGlare ? "Reduces glossy reflections on plastic pouches." : (nextPreset == EvPreset.boost ? "Brightens dark godown inspections." : "Natural exposure."))}',
+              '${nextMode.name} enabled: '
+              '${nextMode == PackagingLightingMode.foil ? "Reduces glare on shiny foil packs." : (nextMode == PackagingLightingMode.antiGlare ? "Reduces reflections on glossy plastic packets." : (nextMode == PackagingLightingMode.brighten ? "Brightens image in dimly lit godowns." : "Standard natural lighting."))}',
             ),
             duration: const Duration(seconds: 2),
           ),
@@ -200,16 +201,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exposure compensation unavailable: $e')),
+          SnackBar(content: Text('Lighting adjustment unavailable: $e')),
         );
       }
     }
   }
 
-  Future<void> _toggleAeAfLock() async {
+  Future<void> _toggleFocusLock() async {
     if (_controller == null || !_controller!.value.isInitialized || _isCapturing) return;
 
-    final newLockState = !_isAeAfLocked;
+    final newLockState = !_isFocusLocked;
     try {
       if (newLockState) {
         await _controller!.setFocusMode(FocusMode.locked);
@@ -222,15 +223,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       }
       if (mounted) {
         setState(() {
-          _isAeAfLocked = newLockState;
+          _isFocusLocked = newLockState;
         });
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               newLockState
-                  ? 'AE/AF LOCKED. Focal plane & exposure are fixed. Framing won\'t cause focus hunting.'
-                  : 'AE/AF UNLOCKED. Continuous auto-focus & auto-exposure restored.',
+                  ? 'Focus locked. Movement won\'t cause blur.'
+                  : 'Focus unlocked. Automatic focus restored.',
             ),
             duration: const Duration(seconds: 2),
           ),
@@ -239,7 +240,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lock AE/AF failed: $e')),
+          SnackBar(content: Text('Focus lock failed: $e')),
         );
       }
     }
@@ -257,7 +258,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
 
     try {
-      if (_isAeAfLocked) {
+      if (_isFocusLocked) {
         // When locked, tapping still focuses and exposes at that specific point and keeps it locked
         await _controller!.setFocusPoint(Offset(nx, ny));
         await _controller!.setExposurePoint(Offset(nx, ny));
@@ -311,8 +312,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
 
     try {
-      // If AE/AF not explicitly locked and no manual point was tapped, ensure center focus point
-      if (!_isAeAfLocked) {
+      // If focus not explicitly locked and no manual point was tapped, ensure center focus point
+      if (!_isFocusLocked) {
         if (_focusPoint == null) {
           try {
             await _controller!.setFocusPoint(const Offset(0.5, 0.5));
@@ -331,7 +332,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       final xFile = await _controller!.takePicture();
 
       // Restore focus mode to auto if it wasn't locked by user
-      if (!_isAeAfLocked) {
+      if (!_isFocusLocked) {
         try {
           await _controller!.setFocusMode(FocusMode.auto);
         } catch (_) {}
@@ -404,49 +405,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [
-          // Dynamic High Quality Mode badge
-          Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                color: Colors.white12,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.white24, width: 0.8),
-              ),
-              child: Text(
-                _activePreset == ResolutionPreset.max
-                    ? 'HQ MAX'
-                    : (_activePreset == ResolutionPreset.ultraHigh
-                        ? 'HQ 4K'
-                        : (_activePreset == ResolutionPreset.veryHigh
-                            ? 'HQ 1080p'
-                            : 'HQ 720p')),
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.4,
-                  color: Colors.white70,
-                ),
-              ),
-            ),
-          ),
-
-          // Multi-Preset EV Compensation Pill Button (Standard / Anti-Glare / Foil / Boost)
+          // Packaging Lighting Preset (Normal / Anti-Glare / Foil Pack / Brighten)
           Center(
             child: InkWell(
               borderRadius: BorderRadius.circular(6),
-              onTap: _isInitialized ? _cycleEvPreset : null,
+              onTap: _isInitialized ? _cycleLightingMode : null,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                margin: const EdgeInsets.only(right: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                margin: const EdgeInsets.only(right: 4),
                 decoration: BoxDecoration(
-                  color: _activeEvPreset != EvPreset.standard
+                  color: _activeLightingMode != PackagingLightingMode.normal
                       ? const Color(0xFFFFD54F).withValues(alpha: 0.2)
                       : Colors.white12,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: _activeEvPreset != EvPreset.standard
+                    color: _activeLightingMode != PackagingLightingMode.normal
                         ? const Color(0xFFFFD54F)
                         : Colors.white24,
                     width: 0.8,
@@ -456,25 +429,25 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _activeEvPreset == EvPreset.foil
+                      _activeLightingMode == PackagingLightingMode.foil
                           ? Icons.shield_outlined
-                          : (_activeEvPreset == EvPreset.antiGlare
+                          : (_activeLightingMode == PackagingLightingMode.antiGlare
                               ? Icons.brightness_medium
-                              : (_activeEvPreset == EvPreset.boost
+                              : (_activeLightingMode == PackagingLightingMode.brighten
                                   ? Icons.brightness_high
-                                  : Icons.exposure)),
+                                  : Icons.light_mode_outlined)),
                       size: 13,
-                      color: _activeEvPreset != EvPreset.standard
+                      color: _activeLightingMode != PackagingLightingMode.normal
                           ? const Color(0xFFFFD54F)
                           : Colors.white70,
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      _activeEvPreset.label,
+                      _activeLightingMode.label,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: _activeEvPreset != EvPreset.standard
+                        color: _activeLightingMode != PackagingLightingMode.normal
                             ? const Color(0xFFFFD54F)
                             : Colors.white70,
                       ),
@@ -485,19 +458,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             ),
           ),
 
-          // AE/AF Lock Toggle Button
+          // Focus Lock Toggle Button
           IconButton(
-            tooltip: _isAeAfLocked ? 'Unlock AE/AF' : 'Lock AE/AF (Focal Plane & Exposure)',
+            tooltip: _isFocusLocked ? 'Unlock Focus' : 'Lock Focus',
             icon: Icon(
-              _isAeAfLocked ? Icons.lock : Icons.lock_open,
-              color: _isAeAfLocked ? const Color(0xFFFFD54F) : Colors.white70,
+              _isFocusLocked ? Icons.lock : Icons.lock_open,
+              color: _isFocusLocked ? const Color(0xFFFFD54F) : Colors.white70,
             ),
-            onPressed: _isInitialized ? _toggleAeAfLock : null,
+            onPressed: _isInitialized ? _toggleFocusLock : null,
           ),
 
-          // Torch Toggle Button
+          // Flashlight Toggle Button
           IconButton(
-            tooltip: _isTorchOn ? 'Turn Off Torch' : 'Turn On Torch (Godown / Low Light)',
+            tooltip: _isTorchOn ? 'Turn Off Flashlight' : 'Turn On Flashlight',
             icon: Icon(
               _isTorchOn ? Icons.flash_on : Icons.flash_off,
               color: _isTorchOn ? const Color(0xFFFFD54F) : Colors.white70,
@@ -522,7 +495,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                        details,
                        Size(constraints.maxWidth, constraints.maxHeight),
                      ),
-                     onLongPress: _toggleAeAfLock,
+                     onLongPress: _toggleFocusLock,
                      onScaleStart: _onScaleStart,
                      onScaleUpdate: _onScaleUpdate,
                      child: Center(
@@ -553,8 +526,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ),
             ),
 
-          // 3. Floating AE/AF Locked Badge
-          if (_isAeAfLocked)
+          // 3. Floating Focus Locked Badge
+          if (_isFocusLocked)
             Positioned(
               top: 72,
               left: 0,
@@ -579,7 +552,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       Icon(Icons.lock, size: 12, color: Colors.black),
                       SizedBox(width: 4),
                       Text(
-                        'AE / AF LOCKED',
+                        'FOCUS LOCKED',
                         style: TextStyle(
                           color: Colors.black,
                           fontSize: 11,
@@ -611,17 +584,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               child: CaptureGuidance(
                 state: _isCapturing ? CaptureState.processing : CaptureState.aligning,
                 customMessage: _statusText,
-                subTip: _isAeAfLocked
-                    ? 'AE/AF LOCKED: Focal plane fixed. Long-press to release.'
-                    : (_activeEvPreset == EvPreset.foil
-                        ? 'FOIL MODE (-2.0 EV): Flare suppressed on metallic/blister packs.'
-                        : (_activeEvPreset == EvPreset.antiGlare
-                            ? 'ANTI-GLARE (-1.0 EV): Glossy pouch reflections reduced.'
-                            : (_activeEvPreset == EvPreset.boost
-                                ? 'LOW LIGHT (+1.0 EV): Sensor boost active for dark godowns.'
+                subTip: _isFocusLocked
+                    ? 'Focus locked. Long-press screen or tap lock icon to release.'
+                    : (_activeLightingMode == PackagingLightingMode.foil
+                        ? 'Foil Pack mode: Glare reduced for metallic packaging.'
+                        : (_activeLightingMode == PackagingLightingMode.antiGlare
+                            ? 'Anti-Glare mode: Reflections reduced on glossy packets.'
+                            : (_activeLightingMode == PackagingLightingMode.brighten
+                                ? 'Brighten mode: Boosted light for dark rooms or godowns.'
                                 : (_currentZoom < 1.5
-                                    ? 'Tip: Tap 2x MACRO from 15-20cm for tiny declarations (Rule 7)'
-                                    : '2x Macro active: Keep 15-20cm distance to avoid device shadows.')))),
+                                    ? 'Tip: Tap "2x Close-up" to inspect small text clearly'
+                                    : 'Close-up active: Hold phone 15-20cm away from package.')))),
               ),
             ),
 
@@ -645,7 +618,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       _buildZoomButton(label: '1x', targetZoom: 1.0),
                       const SizedBox(width: 4),
                       if (_maxZoom >= 2.0)
-                        _buildZoomButton(label: '2x MACRO', targetZoom: 2.0),
+                        _buildZoomButton(label: '2x Close-up', targetZoom: 2.0),
                       if (_maxZoom >= 3.0) ...[
                         const SizedBox(width: 4),
                         _buildZoomButton(label: '3x', targetZoom: 3.0),

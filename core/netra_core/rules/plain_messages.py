@@ -14,7 +14,7 @@ _PLAIN = {
     ("13", "PASS"): "Unit spellings are correct.",
     ("6(1)(c)", "FAIL"): "The net quantity is printed in a non-standard unit.",
     ("6(1)(c)", "PASS"): "Net quantity is declared correctly.",
-    ("6(1)(e)", "FAIL"): "The MRP is printed but '{missing}' — this wording is legally required.",
+    ("6(1)(e)", "FAIL"): "The MRP declaration is non-compliant or missing required statutory wording.",
     ("6(1)(e)", "PASS"): "MRP is declared with the required tax wording.",
     ("6(11)", "FAIL"): "The unit price printed on the pack doesn't match the MRP.",
     ("6(11)", "PASS"): "The unit price matches the MRP.",
@@ -44,21 +44,44 @@ _TOKEN_FIX = {"gms": "g", "grm": "g", "kilo": "kg", "kgs": "kg",
 
 def plain_for(rule: str, status: str, message: str = "") -> str:
     """Field-voice rendering of a check; statutory message as fallback."""
+    low = message.lower()
+
+    # Specialized phrasing for Rule 6(1)(e) (MRP) based on specific failure cause
+    if rule == "6(1)(e)" and status == "FAIL":
+        if "not detected" in low or "not found" in low:
+            return "The Maximum Retail Price (MRP) declaration was not found on the package."
+        if "inclusive of all taxes" in low or "tax" in low:
+            return "The MRP is printed, but mandatory phrase 'inclusive of all taxes' is missing."
+        if "rupee amount" in low:
+            return "The MRP is printed without a valid retail price amount."
+        if "wording" in low or "keyword" in low:
+            return "The price is printed, but 'MRP' / 'Maximum Retail Price' wording is missing."
+        if "missing" in low:
+            missing_detail = message.split("missing", 1)[-1].strip().rstrip(".")
+            return f"The MRP declaration is incomplete: missing {missing_detail}."
+        return "The MRP declaration is non-compliant or missing required statutory wording."
+
     tmpl = _PLAIN.get((rule, status))
     if tmpl is None:
         return message
     kwargs = {}
-    low = message.lower()
     for bad, good in _TOKEN_FIX.items():
         if f"'{bad}'" in low:
             kwargs = {"token": bad, "fix": good}
             break
-    if "inclusive of all taxes" in low and status == "FAIL":
-        kwargs["missing"] = "'incl. of all taxes' is missing"
     if "{note}" in tmpl:
         kwargs["note"] = message.split(". ", 1)[-1].rstrip(".") or \
             "small/bulk/institutional exemption"
     try:
-        return tmpl.format(**kwargs)
-    except KeyError:
-        return tmpl
+        formatted = tmpl.format(**kwargs)
+        if "{" in formatted and "}" in formatted:
+            if rule == "13" and status == "FAIL":
+                return "The printed unit symbol is non-standard or misspelled."
+            return message or "Declaration non-compliant with statutory rules."
+        return formatted
+    except (KeyError, IndexError, ValueError):
+        if rule == "13" and status == "FAIL":
+            return "The printed unit symbol is non-standard or misspelled."
+        if rule == "26" and status == "NA":
+            return "This pack is exempt from declaration rules."
+        return message or "Declaration non-compliant with statutory rules."

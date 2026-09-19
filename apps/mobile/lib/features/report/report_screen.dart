@@ -14,6 +14,7 @@ import 'widgets/fields_table.dart';
 import 'widgets/geometry_card.dart';
 import 'widgets/exemption_card.dart';
 import 'widgets/evidence_viewer.dart';
+import '../scanner/scanner_screen.dart';
 
 /// Complete Report Screen (Brief §5.5).
 /// Renders statutory inspection results with verdict-first hierarchy and evidence linkage.
@@ -103,20 +104,25 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     buffer.writeln('NETRA LEGAL METROLOGY INSPECTION RECORD');
     buffer.writeln('========================================');
     buffer.writeln('Scan ID: ${result.scanId}');
-    buffer.writeln('Timestamp: ${result.timestampUtc} (UTC)');
-    if (result.commodity.isNotEmpty) {
-      buffer.writeln('Commodity: ${result.commodity}');
+    buffer.writeln('Timestamp: ${result.capturedUtc} (UTC)');
+    final commodity = (result.meta?['commodity'] as String?) ?? '';
+    if (commodity.isNotEmpty) {
+      buffer.writeln('Commodity: $commodity');
     }
-    buffer.writeln('Package Shape: ${result.shape}');
-    buffer.writeln('Inspection Verdict: ${result.verdict.name.toUpperCase()}');
+    final shape = result.geometry?.shape ?? result.geometry?.shapeDetected ?? 'standard';
+    buffer.writeln('Package Shape: $shape');
+    buffer.writeln('Inspection Verdict: ${result.verdict.value.toUpperCase()}');
     buffer.writeln();
 
     buffer.writeln('STATUTORY RULES COMPLIANCE:');
     for (final check in result.checks) {
-      final statusStr = check.status.name.toUpperCase();
-      buffer.writeln('• ${check.rule}: $statusStr - ${check.description}');
-      if (check.detail != null && check.detail!.isNotEmpty) {
-        buffer.writeln('  Detail: ${check.detail}');
+      final statusStr = check.status.value.toUpperCase();
+      buffer.writeln('• ${check.rule}: $statusStr - ${check.plain}');
+      if (check.message.isNotEmpty && check.message != check.plain) {
+        buffer.writeln('  Message: ${check.message}');
+      }
+      if (check.citation.isNotEmpty) {
+        buffer.writeln('  Citation: ${check.citation}');
       }
     }
     buffer.writeln();
@@ -124,8 +130,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     if (result.dossier != null) {
       buffer.writeln('EVIDENCE DOSSIER:');
       buffer.writeln('SHA-256: ${result.dossier!.sha256}');
-      buffer.writeln('Signature: ${result.dossier!.sigStatus.name.toUpperCase()}');
-      buffer.writeln('Queue ID: ${result.dossier!.queueId}');
+      buffer.writeln('Signature: ${result.dossier!.sigStatus.value.toUpperCase()}');
     }
     buffer.writeln('========================================');
 
@@ -195,7 +200,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                 const Icon(Icons.error_outline, size: 16, color: AppColors.verdictRed),
                 const SizedBox(width: 6),
                 Text(
-                  'STATUTORY VIOLATIONS DETECTED (${failedChecks.length})',
+                  'VIOLATIONS FOUND (${failedChecks.length})',
                   style: AppTypography.sectionLabel.copyWith(color: AppColors.verdictRed),
                 ),
               ],
@@ -221,8 +226,8 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           if (otherChecks.isNotEmpty) ...[
             Text(
               failedChecks.isNotEmpty
-                  ? 'COMPLIANT & EXEMPT CHECKS (${otherChecks.length})'
-                  : 'STATUTORY DECLARATION AUDIT',
+                  ? 'COMPLIANT & EXEMPT (${otherChecks.length})'
+                  : 'COMPLIANCE AUDIT (${otherChecks.length})',
               style: AppTypography.sectionLabel,
             ),
             const SizedBox(height: 8),
@@ -270,17 +275,36 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
           _buildInspectionMetadataAccordion(),
           const SizedBox(height: 24),
 
-          // 10. Complete Inspection Action
+          // 10. Inspection Completion Actions
           ElevatedButton.icon(
-            icon: const Icon(Icons.check_circle_outline, size: 20),
+            icon: const Icon(Icons.camera_alt, size: 20, color: Colors.white),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.navy,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
+            onPressed: () {
+              ref.read(scanSessionProvider.notifier).resetSession();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const ScannerScreen()),
+                (route) => route.isFirst,
+              );
+            },
+            label: const Text(
+              'START NEXT INSPECTION',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.home_outlined, size: 20),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              side: const BorderSide(color: AppColors.navy, width: 1.2),
+            ),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
             label: const Text(
-              'RETURN TO INSPECTION HOME',
-              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              'RETURN TO HOME',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5, color: AppColors.navy),
             ),
           ),
           const SizedBox(height: 10),
@@ -288,12 +312,12 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             icon: const Icon(Icons.copy_all, size: 18),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              side: const BorderSide(color: AppColors.navy, width: 1.2),
+              side: const BorderSide(color: AppColors.border, width: 1.2),
             ),
             onPressed: _copyStatutorySummary,
             label: const Text(
-              'COPY STATUTORY NOTICE SUMMARY (PANCHNAMA)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.navy),
+              'COPY SUMMARY FOR MEMO / PANCHNAMA',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.ink),
             ),
           ),
           if (result.dossier != null) ...[

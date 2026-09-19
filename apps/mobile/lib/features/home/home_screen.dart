@@ -67,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
               onPressed: () {
                 ref.read(scanSessionProvider.notifier).resetSession();
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ScanSetupScreen()),
+                  MaterialPageRoute(builder: (_) => const ScannerScreen()),
                 );
               },
               icon: const Icon(Icons.camera_alt, size: 28, color: Colors.white),
@@ -118,7 +118,27 @@ class HomeScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                ref.read(scanSessionProvider.notifier).resetSession();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ScanSetupScreen()),
+                );
+              },
+              icon: const Icon(Icons.tune, size: 15, color: AppColors.inkSecondary),
+              label: const Text(
+                'Advanced / Manual Setup',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkSecondary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
 
           // 2. Recent Inspection Strip
           const Text('RECENT INSPECTION', style: AppTypography.sectionLabel),
@@ -323,7 +343,7 @@ class HomeScreen extends ConsumerWidget {
               style: AppTypography.caption.copyWith(
                 fontWeight: FontWeight.w600,
                 fontSize: 11,
-                color: AppColors.inkPrimary,
+                color: AppColors.ink,
               ),
             ),
           ],
