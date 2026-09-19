@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
@@ -78,28 +79,33 @@ abstract final class ImagePipeline {
     final imageSha = sha256.convert(singleBytes).toString();
 
     // 6. ML Kit OCR on the SAME temp file
-    final inputImage = InputImage.fromFilePath(tempFile.path);
-    final recognizedText = await _recognizer.processImage(inputImage);
-
     final List<Token> tokens = [];
-    for (final block in recognizedText.blocks) {
-      for (final line in block.lines) {
-        final box = line.boundingBox;
-        // BBox is [left, top, width, height]
-        final bbox = BBox(
-          box.left.round(),
-          box.top.round(),
-          box.width.round(),
-          box.height.round(),
-        );
-        tokens.add(Token(
-          text: line.text,
-          bbox: bbox,
-          conf: 1.0,
-          engine: 'mlkit',
-          lang: 'en',
-        ));
+    try {
+      final inputImage = InputImage.fromFilePath(tempFile.path);
+      final recognizedText = await _recognizer.processImage(inputImage);
+
+      for (final block in recognizedText.blocks) {
+        for (final line in block.lines) {
+          final box = line.boundingBox;
+          // BBox is [left, top, width, height]
+          final bbox = BBox(
+            box.left.round(),
+            box.top.round(),
+            box.width.round(),
+            box.height.round(),
+          );
+          tokens.add(Token(
+            text: line.text,
+            bbox: bbox,
+            conf: 1.0,
+            engine: 'mlkit',
+            lang: 'en',
+          ));
+        }
       }
+    } catch (e, st) {
+      // Allow capture pipeline to proceed even if ML Kit OCR model is downloading or encountering native errors
+      debugPrint('[ImagePipeline] ML Kit OCR non-fatal warning: $e\n$st');
     }
 
     return ProcessedImage(
