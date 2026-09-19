@@ -47,7 +47,7 @@ class USPResult:
     unit_ok: Optional[bool]
     math_ok: Optional[bool]
     delta: Optional[Decimal]
-    compliant: bool
+    compliant: Optional[bool]
     detail: str
 
 
@@ -64,7 +64,25 @@ def evaluate_usp(mrp, net_qty, qty_unit, declared=None, declared_unit=None) -> U
     du = (declared_unit or "").strip().lower() or None
 
     # ---- dimension & reference-unit selection -----------------------------
-    if unit in _COUNT or unit == "number":
+    if unit in ("cm2", "m2"):
+        return USPResult(
+            exempt=False,
+            required_unit=None,
+            expected=None,
+            expected_raw=None,
+            declared=declared_d,
+            declared_unit=declared_unit,
+            unit_ok=None,
+            math_ok=None,
+            delta=None,
+            compliant=None,
+            detail=(
+                "Rule 6(11) USP reference units are mandated for mass, length, "
+                "volume and number only — area quantities are outside the USP "
+                "mandate; not evaluated."
+            ),
+        )
+    elif unit in _COUNT or unit == "number":
         dim, base, qty_in_req = "count", qty, qty
         exempt = qty == 1                       # second proviso
         required = None if exempt else "piece"

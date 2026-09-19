@@ -33,7 +33,7 @@ from ..rules.exemptions import assess_exemption
 from ..rules.parsers import parse_money, parse_quantity, parse_usp
 from ..rules.si_units import find_prohibited_units
 from ..rules.table1_fonts import font_height_ok, glyph_aspect_ok
-from ..rules.usp import evaluate_usp
+from ..rules.usp import evaluate_usp, USPResult
 
 # declarations that Rule 7 subjects to Table-I minimum heights
 _FONT_FIELDS = ("net_qty", "mrp")
@@ -110,7 +110,9 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
 
     # ---- Rule 13: prohibited unit syntax ------------------------------------
     hit = None
-    for key in ctx.fields:
+    # Rule 13 regulates the statement of units of weight/measure/number —
+    # it does not reach corporate names or postal addresses.
+    for key in ("net_qty", "usp"):   # Rule 13 governs quantity/price unit syntax only
         raw = _raw(ctx, key)
         if raw:
             hits = find_prohibited_units(raw)
@@ -150,10 +152,25 @@ def run(ctx: PipelineContext, options: Optional[dict] = None) -> list:
     usp_raw = _raw(ctx, "usp")
     if mrp_val is not None and qty_val is not None:
         declared = parse_usp(usp_raw) if usp_raw else None
-        r = evaluate_usp(
-            mrp_val, qty_val, qty_unit,
-            declared=declared.value if declared is not None else None,
-            declared_unit=declared.unit if declared is not None else None)
+        try:
+            r = evaluate_usp(
+                mrp_val, qty_val, qty_unit,
+                declared=declared.value if declared is not None else None,
+                declared_unit=declared.unit if declared is not None else None)
+        except ValueError:
+            r = USPResult(
+                exempt=False,
+                required_unit=None,
+                expected=None,
+                expected_raw=None,
+                declared=None,
+                declared_unit=None,
+                unit_ok=None,
+                math_ok=None,
+                delta=None,
+                compliant=None,
+                detail=f"USP not evaluable for quantity unit '{qty_unit}' — recorded for manual review",
+            )
         add("6(11)", r.compliant, r.detail, field="usp")
     else:
         add("6(11)", None, "USP not evaluable — MRP or net quantity missing.",

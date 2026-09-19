@@ -124,9 +124,18 @@ def parse_money_lenient(text: str) -> Optional[Decimal]:
     kw = _MRP_CONTEXT_RE.search(t)
     if kw is None:
         return None
-    matches = list(_BARE_AMOUNT_RE.finditer(t[kw.end():]))
+    tail = t[kw.end():]
+    # never scan past a unit-price declaration into the USP value
+    stop = re.search(
+        r"\b(?:usp|unit\s+sale\s+price|rsp|retail\s+sale\s+price)\b",
+        tail, re.IGNORECASE)
+    if stop:
+        tail = tail[:stop.start()]
+    matches = list(_BARE_AMOUNT_RE.finditer(tail))
     if not matches:
         return None
+    # glyph guard intact: prefer the two-decimal form WITHIN the bounded
+    # tail ('MRP 9 50.00' -> 50.00); USP values can no longer leak in
     best = next((m for m in matches
                  if re.fullmatch(r"[0-9]+\.[0-9]{2}", m.group(0))),
                 matches[0])

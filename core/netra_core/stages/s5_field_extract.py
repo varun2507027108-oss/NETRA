@@ -55,7 +55,7 @@ PRODUCT_TOP_FRAC = 0.65  # product name expected in top 65% of token cloud
 # ---- anchor vocabularies ----------------------------------------------------
 _ANCHORS = {
     FIELD_NET_QTY: (
-        r"\bnet\s*(?:quantity|qty|qnty|wt|weight|contents?)\b",
+        r"\bnet\s*(?:quantity|qty|qnty|wt|weight|vol(?:ume)?|contents?)\b",
         r"^(?:quantity|qty)\b",
     ),
     FIELD_MRP: (
@@ -67,7 +67,7 @@ _ANCHORS = {
         r"\bu\.?\s*s\.?\s*p\.?\b",
     ),
     FIELD_MFG_DATE: (
-        r"\bmfg\b", r"\bmfd\b",
+        r"\bmfg\b", r"\bmfd\b", r"\bpkd\.?\b",
         r"\bdate\s+of\s+(?:mfg|manufactur|pack)",
         r"\bmanufactur(?:ed|ing)\s+on\b",
         r"\bpack(?:ed|ing)\s+(?:on|date)\b",
